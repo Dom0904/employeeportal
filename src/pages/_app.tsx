@@ -7,16 +7,16 @@ import { NotificationProvider } from '../contexts/NotificationContext';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <AuthProvider>
-      <InventoryProvider>
-        <BOMProvider>
-          <NotificationProvider>
+    <NotificationProvider>
+      <AuthProvider>
+        <InventoryProvider>
+          <BOMProvider>
             {/* Add more providers here if needed */}
             <Component {...pageProps} />
-          </NotificationProvider>
-        </BOMProvider>
-      </InventoryProvider>
-    </AuthProvider>
+          </BOMProvider>
+        </InventoryProvider>
+      </AuthProvider>
+    </NotificationProvider>
   );
 }
 
