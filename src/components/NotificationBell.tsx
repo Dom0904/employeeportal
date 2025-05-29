@@ -140,6 +140,7 @@ const NotificationBell: React.FC = () => {
       </ListItem>
     </a>
   </Link>
+  <Divider />
 ) : (
   <ListItem 
     button
@@ -200,6 +201,7 @@ const NotificationBell: React.FC = () => {
       </Box>
     </Box>
   </ListItem>
+  <Divider />
 </React.Fragment>
               ))}
             </List>
