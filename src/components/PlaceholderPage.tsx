@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography, Paper, Button } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 
 interface PlaceholderPageProps {
   title: string;
@@ -8,7 +8,7 @@ interface PlaceholderPageProps {
 }
 
 const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, description }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <Paper sx={{ 
@@ -47,7 +47,7 @@ const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, description })
         <Button 
           variant="contained" 
           color="secondary"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => router.push('/dashboard')}
           sx={{ fontWeight: 'medium' }}
         >
           Back to Dashboard

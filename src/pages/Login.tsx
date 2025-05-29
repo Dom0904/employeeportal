@@ -15,7 +15,7 @@ import {
   VisibilityOff
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import logoSvg from '../assets/edgetech-logo.png';
 
 const Login = () => {
@@ -25,7 +25,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +40,7 @@ const Login = () => {
     try {
       const success = await login(idNumber, password);
       if (success) {
-        navigate('/dashboard');
+        router.push('/dashboard');
       } else {
         setError('Invalid ID number or password');
       }

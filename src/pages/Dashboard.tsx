@@ -21,11 +21,11 @@ import {
   Today as TodayIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   
   // Mock data for dashboard
   const announcements = [
@@ -78,14 +78,14 @@ const Dashboard = () => {
         <Stack direction="row" spacing={2} sx={{ mt: { xs: 2, md: 0 } }}>
           <Button 
             variant="contained" 
-            onClick={() => navigate('/time-tracking')}
+            onClick={() => router.push('/time-tracking')}
             color="secondary"
           >
             Clock In/Out
           </Button>
           <Button 
             variant="outlined" 
-            onClick={() => navigate('/leave-requests')}
+            onClick={() => router.push('/leave-requests')}
             color="primary"
           >
             Request Leave
@@ -105,7 +105,7 @@ const Dashboard = () => {
               title="Announcements" 
               avatar={<AnnouncementIcon color="primary" />}
               action={
-                <Button size="small" onClick={() => navigate('/announcements')} color="primary">
+                <Button size="small" onClick={() => router.push('/announcements')} color="primary">
                   View All
                 </Button>
               }
@@ -148,7 +148,7 @@ const Dashboard = () => {
               title="Today's Schedule" 
               avatar={<TodayIcon sx={{ color: 'secondary.main' }} />}
               action={
-                <Button size="small" onClick={() => navigate('/calendar')} color="primary">
+                <Button size="small" onClick={() => router.push('/calendar')} color="primary">
                   Calendar
                 </Button>
               }
@@ -184,7 +184,7 @@ const Dashboard = () => {
               title="Upcoming Tasks" 
               avatar={<AssignmentIcon sx={{ color: 'secondary.main' }} />}
               action={
-                <Button size="small" onClick={() => navigate('/job-assignments')} color="primary">
+                <Button size="small" onClick={() => router.push('/job-assignments')} color="primary">
                   View All
                 </Button>
               }
@@ -220,7 +220,7 @@ const Dashboard = () => {
               title="My Leave Requests" 
               avatar={<EventNoteIcon color="primary" />}
               action={
-                <Button size="small" onClick={() => navigate('/leave-requests')} color="primary">
+                <Button size="small" onClick={() => router.push('/leave-requests')} color="primary">
                   New Request
                 </Button>
               }

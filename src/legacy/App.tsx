@@ -1,35 +1,35 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
-import { UserRole } from './contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../contexts/AuthContext';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { NotificationProvider, NotificationSnackbar } from './contexts/NotificationContext';
-import { JobProvider } from './contexts/JobContext';
-import { InventoryProvider } from './contexts/InventoryContext';
-import { LeaveProvider } from './contexts/LeaveContext';
-import { BOMProvider } from './contexts/BOMContext';
+import { NotificationProvider, NotificationSnackbar } from '../contexts/NotificationContext';
+import { JobProvider } from '../contexts/JobContext';
+import { InventoryProvider } from '../contexts/InventoryContext';
+import { LeaveProvider } from '../contexts/LeaveContext';
+import { BOMProvider } from '../contexts/BOMContext';
 
 // Layout
-import Layout from './components/Layout';
+import Layout from '../components/Layout';
 
 // Pages
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import PersonalInfo from './pages/PersonalInfo';
-import EmployeeList from './pages/EmployeeList';
-import EmployeeStatus from './pages/EmployeeStatus';
-import JobSchedule from './pages/JobSchedule';
-import Calendar from './pages/Calendar';
-import Settings from './pages/Settings';
-import Announcements from './pages/Announcements';
-import LeaveRequests from './pages/LeaveRequests';
-import Inventory from './pages/Inventory';
-import CostEstimation from './pages/CostEstimation';
-import BillOfMaterial from './pages/BillOfMaterial';
-import TimeTracking from './pages/TimeTracking';
-import JobAssignments from './pages/JobAssignments';
-import JobAcknowledgement from './pages/JobAcknowledgement';
+import Login from '../pages/Login';
+import Dashboard from '../pages/Dashboard';
+import PersonalInfo from '../pages/PersonalInfo';
+import EmployeeList from '../pages/EmployeeList';
+import EmployeeStatus from '../pages/EmployeeStatus';
+import JobSchedule from '../pages/JobSchedule';
+import Calendar from '../pages/Calendar';
+import Settings from '../pages/Settings';
+import Announcements from '../pages/Announcements';
+import LeaveRequests from '../pages/LeaveRequests';
+import Inventory from '../pages/Inventory';
+import CostEstimation from '../pages/CostEstimation';
+import BillOfMaterial from '../pages/BillOfMaterial';
+import TimeTracking from '../pages/TimeTracking';
+import JobAssignments from '../pages/JobAssignments';
+import JobAcknowledgement from '../pages/JobAcknowledgement';
 
 // Protected route component
 interface ProtectedRouteProps {

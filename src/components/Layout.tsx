@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { styled, useTheme } from '@mui/material/styles';
 import {
   Box,
@@ -146,22 +146,20 @@ const navigationGroups = [
 // Dashboard is kept separate as it's not part of any group
 const dashboardItem = { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] };
 
-const Layout = () => {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<{ [key: string]: boolean }>({});
+  const [profileMenuAnchorEl, setProfileMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [notificationMenuAnchorEl, setNotificationMenuAnchorEl] = useState<null | HTMLElement>(null);
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [notificationAnchorEl, setNotificationAnchorEl] = useState<null | HTMLElement>(null);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    'Personal Information': true,
-    'Tools': false,
-    'Assignment': false,
-    'Management': false,
-    'Settings': false
-  });
-  
+  const router = useRouter();
+  const location = router;
+
   // Mock notifications
   const notifications = [
     { id: 1, message: "New announcement posted" },
@@ -178,28 +176,28 @@ const Layout = () => {
   };
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+    setProfileMenuAnchorEl(event.currentTarget);
   };
 
   const handleProfileMenuClose = () => {
-    setAnchorEl(null);
+    setProfileMenuAnchorEl(null);
   };
 
   const handleNotificationMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setNotificationAnchorEl(event.currentTarget);
+    setNotificationMenuAnchorEl(event.currentTarget);
   };
 
   const handleNotificationMenuClose = () => {
-    setNotificationAnchorEl(null);
+    setNotificationMenuAnchorEl(null);
   };
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    router.push('/login');
   };
 
   const handleNavigation = (path: string) => {
-    navigate(path);
+    router.push(path);
   };
 
   const handleGroupToggle = (groupName: string) => {
@@ -249,8 +247,8 @@ const Layout = () => {
             </Badge>
           </IconButton>
           <Menu
-            anchorEl={notificationAnchorEl}
-            open={Boolean(notificationAnchorEl)}
+            anchorEl={notificationMenuAnchorEl}
+            open={Boolean(notificationMenuAnchorEl)}
             onClose={handleNotificationMenuClose}
             PaperProps={{
               style: { width: '320px' }
@@ -277,17 +275,17 @@ const Layout = () => {
             />
           </IconButton>
           <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
+            anchorEl={profileMenuAnchorEl}
+            open={Boolean(profileMenuAnchorEl)}
             onClose={handleProfileMenuClose}
           >
-            <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/profile'); }}>
+            <MenuItem onClick={() => { handleProfileMenuClose(); handleNavigation('/profile'); }}>
               <ListItemIcon>
                 <PersonIcon fontSize="small" />
               </ListItemIcon>
               My Profile
             </MenuItem>
-            <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>
+            <MenuItem onClick={() => { handleProfileMenuClose(); handleNavigation('/settings'); }}>
               <ListItemIcon>
                 <SettingsIcon fontSize="small" />
               </ListItemIcon>
@@ -419,10 +417,10 @@ const Layout = () => {
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        <Outlet />
+        {children}
       </Main>
     </Box>
   );
 };
 
-export default Layout; 
+export default Layout;
