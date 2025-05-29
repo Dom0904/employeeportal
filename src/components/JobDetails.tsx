@@ -13,7 +13,8 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Avatar
+  Avatar,
+  Chip
 } from '@mui/material';
 import { 
   Work as WorkIcon, 

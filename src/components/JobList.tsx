@@ -197,36 +197,6 @@ export const JobList: React.FC<JobListProps> = ({ jobsByStatus, onJobSelect, sel
     );
   };
   
-          sx={{ 
-            fontWeight: 'bold', 
-            color: 'text.secondary',
-            mb: 1,
-            px: 2,
-            py: 1,
-            bgcolor: 'background.default',
-            borderRadius: 1,
-            display: 'inline-block',
-          }}
-        >
-          {title}
-        </Typography>
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            border: '1px solid', 
-            borderColor: 'divider',
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}
-        >
-          <List disablePadding>
-            {jobs.map(job => renderJobItem(job))}
-          </List>
-        </Paper>
-      </Box>
-    );
-  };
-  
   // Group jobs by status
   const jobGroups = [
     { 
@@ -271,17 +241,16 @@ export const JobList: React.FC<JobListProps> = ({ jobsByStatus, onJobSelect, sel
       {jobGroups.map(group => 
         group.jobs.length > 0 ? (
           <Box key={group.title}>
-            <Typography 
-              variant="subtitle2" 
-              sx={{ 
-                fontWeight: 'bold', 
-                color: 'text.secondary',
-                mb: 1,
-                px: 1,
-              }}
-            >
-              {group.title} ({group.jobs.length})
-            </Typography>
+            <Box sx={{ 
+              fontWeight: 'bold', 
+              color: 'text.secondary',
+              mb: 1,
+              px: 1,
+            }}>
+              <Typography variant="subtitle2">
+                {group.title} ({group.jobs.length})
+              </Typography>
+            </Box>
             <Paper 
               elevation={0} 
               sx={{ 

@@ -77,7 +77,8 @@ const NotificationBell: React.FC = () => {
               {recentNotifications.map((notification) => (
                 <React.Fragment key={notification.id}>
                   {notification.link ? (
-                    <ListItem key={notification.id} 
+                    <React.Fragment>
+                      <ListItem key={notification.id} 
                         button
                         component="a"
                         href={notification.link}
