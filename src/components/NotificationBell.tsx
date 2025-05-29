@@ -76,145 +76,70 @@ const NotificationBell: React.FC = () => {
             <List dense disablePadding>
               {recentNotifications.map((notification) => (
                 <React.Fragment key={notification.id}>
-                  {notification.link ? (
-                    <React.Fragment>
-                      <ListItem key={notification.id} 
-                        button
-                        component="a"
-                        href={notification.link}
-                        onClick={() => handleNotificationClick(notification.id, notification.link)}
-                        sx={{
-                          bgcolor: !notification.read ? 'action.hover' : 'transparent',
-                          '&:hover': { bgcolor: 'action.selected' },
-                          px: 2,
-                          py: 1.5,
-                          textDecoration: 'none',
-                          color: 'inherit'
-                        }}
-                      >
-                        <Box sx={{ width: '100%' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                            <Avatar 
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                mr: 1.5,
-                                bgcolor: 'primary.main',
-                                color: 'primary.contrastText',
-                              }}
-                            >
-                              {notification.type === 'success' ? '✓' : 
-                               notification.type === 'error' ? '!' : 
-                               notification.type === 'warning' ? '⚠' : 'i'}
-                            </Avatar>
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Typography 
-                                variant="body2" 
-                                sx={{
-                                  fontWeight: notification.read ? 'normal' : 'bold',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                              >
-                                {notification.message}
-                              </Typography>
-                              <Typography 
-                                variant="caption" 
-                                color="textSecondary"
-                                sx={{ display: 'block', mt: 0.5 }}
-                              >
-                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                              </Typography>
-                            </Box>
-                            {!notification.read && (
-                              <Box 
-                                sx={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: '50%',
-                                  bgcolor: 'primary.main',
-                                  ml: 1,
-                                }}
-                              />
-                            )}
-                          </Box>
+                  <ListItem
+                    button
+                    component={notification.link ? "a" : undefined}
+                    href={notification.link ? notification.link : undefined}
+                    onClick={() => handleNotificationClick(notification.id, notification.link)}
+                    sx={{
+                      bgcolor: !notification.read ? 'action.hover' : 'transparent',
+                      '&:hover': { bgcolor: 'action.selected' },
+                      px: 2,
+                      py: 1.5,
+                      textDecoration: notification.link ? 'none' : undefined,
+                      color: 'inherit',
+                    }}
+                  >
+                    <Box sx={{ width: '100%' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <Avatar
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            mr: 1.5,
+                            bgcolor: 'primary.main',
+                            color: 'primary.contrastText',
+                          }}
+                        >
+                          {notification.type === 'success' ? '✓' :
+                            notification.type === 'error' ? '!' :
+                            notification.type === 'warning' ? '⚠' : 'i'}
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: notification.read ? 'normal' : 'bold',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {notification.message}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="textSecondary"
+                            sx={{ display: 'block', mt: 0.5 }}
+                          >
+                            {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                          </Typography>
                         </Box>
-                      </ListItem>
-                      <Divider />
-                  ) : (
-                    <ListItem key={notification.id} 
-                        button
-                        onClick={() => handleNotificationClick(notification.id)}
-                        sx={{
-                          bgcolor: !notification.read ? 'action.hover' : 'transparent',
-                          '&:hover': { bgcolor: 'action.selected' },
-                          px: 2,
-                          py: 1.5,
-                        }}
-                      >
-                        <Box sx={{ width: '100%' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                            <Avatar 
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                mr: 1.5,
-                                bgcolor: 'primary.main',
-                                color: 'primary.contrastText',
-                              }}
-                            >
-                              {notification.type === 'success' ? '✓' : 
-                               notification.type === 'error' ? '!' : 
-                               notification.type === 'warning' ? '⚠' : 'i'}
-                            </Avatar>
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Typography 
-                                variant="body2" 
-                                sx={{
-                                  fontWeight: notification.read ? 'normal' : 'bold',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                              >
-                                {notification.message}
-                              </Typography>
-                              <Typography 
-                                variant="caption" 
-                                color="textSecondary"
-                                sx={{ display: 'block', mt: 0.5 }}
-                              >
-                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                              </Typography>
-                            </Box>
-                            {!notification.read && (
-                              <Box 
-                                sx={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: '50%',
-                                  bgcolor: 'primary.main',
-                                  ml: 1,
-                                }}
-                              />
-                          </Box>
-                          {!notification.read && (
-                            <Box 
-                              sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                bgcolor: 'primary.main',
-                                ml: 1,
-                              }}
-                            />
-                          )}
-                        </Box>
+                        {!notification.read && (
+                          <Box
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              bgcolor: 'primary.main',
+                              ml: 1,
+                            }}
+                          />
+                        )}
                       </Box>
-                    </ListItem>
-                    <Divider />
-                  )}
+                    </Box>
+                  </ListItem>
+                  <Divider />
                 </React.Fragment>
               ))}
             </List>
