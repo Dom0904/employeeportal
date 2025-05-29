@@ -27,7 +27,6 @@ const NotificationBell: React.FC = () => {
     markAllAsRead();
   };
 
-  const unreadNotifications = notifications.filter(n => !n.read);
   const recentNotifications = notifications.slice(0, 5); // Show only 5 most recent
 
   return (

@@ -20,11 +20,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Fetch inventory from Supabase on mount
   useEffect(() => {
     const fetchItems = async () => {
-      const { data, error } = await supabase.from('inventory').select('*');
+      const { error } = await supabase.from('inventory').select('*');
       if (error) {
         showNotification({ type: 'error', message: 'Failed to fetch inventory' });
-      } else if (data) {
-        setItems(data);
       }
     };
     fetchItems();

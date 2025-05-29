@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
-import { Box, Paper, Typography, IconButton, Grid, Button, Badge, List, ListItem, ListItemText, Divider, Popover } from '@mui/material';
+import { Box, Paper, Typography, IconButton, List, ListItem, ListItemText, Divider, Popover } from '@mui/material';
 import { ChevronLeft, ChevronRight, Today as TodayIcon } from '@mui/icons-material';
 
 import type { Job } from '../contexts/JobContext';

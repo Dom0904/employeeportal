@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { LeaveRequest, LeaveStatus } from '../types/Leave';
+import { LeaveRequest } from '../types/Leave';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../supabaseClient';
 

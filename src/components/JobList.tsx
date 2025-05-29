@@ -6,10 +6,8 @@ import {
   Typography, 
   Chip, 
   Button, 
-  IconButton,
   ListItemButton,
-  Paper,
-  ListItemIcon
+  Paper
 } from '@mui/material';
 import { 
   AccessTime as TimeIcon, 
