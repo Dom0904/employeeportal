@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Badge, IconButton, Popover, List, ListItem, Typography, Divider, Button, Box, Avatar } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Badge, IconButton, Popover, List, ListItem, ListItemText, Typography, Divider, Button, Box, Avatar } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useNotifications } from '../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -77,7 +77,8 @@ const NotificationBell: React.FC = () => {
               {recentNotifications.map((notification) => (
                 <React.Fragment key={notification.id}>
                   {notification.link ? (
-                    <ListItem key={notification.id} 
+                    <>
+                      <ListItem 
                         button
                         component="a"
                         href={notification.link}
@@ -141,8 +142,10 @@ const NotificationBell: React.FC = () => {
                         </Box>
                       </ListItem>
                       <Divider />
+                    </>
                   ) : (
-                    <ListItem key={notification.id} 
+                    <>
+                      <ListItem 
                         button
                         onClick={() => handleNotificationClick(notification.id)}
                         sx={{
@@ -202,6 +205,7 @@ const NotificationBell: React.FC = () => {
                         </Box>
                       </ListItem>
                       <Divider />
+                    </>
                   )}
                 </React.Fragment>
               ))}

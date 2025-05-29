@@ -5,24 +5,28 @@ import { BOMProvider } from '../contexts/BOMContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { JobProvider } from '../contexts/JobContext';
 import { LeaveProvider } from '../contexts/LeaveContext';
-// Add other providers as needed
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import theme from '../theme';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <NotificationProvider>
-      <AuthProvider>
-        <JobProvider>
-          <LeaveProvider>
-            <InventoryProvider>
-              <BOMProvider>
-                {/* Add more providers here if needed */}
-                <Component {...pageProps} />
-              </BOMProvider>
-            </InventoryProvider>
-          </LeaveProvider>
-        </JobProvider>
-      </AuthProvider>
-    </NotificationProvider>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <NotificationProvider>
+        <AuthProvider>
+          <JobProvider>
+            <LeaveProvider>
+              <InventoryProvider>
+                <BOMProvider>
+                  <Component {...pageProps} />
+                </BOMProvider>
+              </InventoryProvider>
+            </LeaveProvider>
+          </JobProvider>
+        </AuthProvider>
+      </NotificationProvider>
+    </ThemeProvider>
   );
 }
 

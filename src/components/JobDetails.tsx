@@ -3,35 +3,30 @@ import {
   Box, 
   Typography, 
   Paper, 
-  Divider, 
-  Chip, 
   Button, 
-  List, 
-  ListItem, 
-  ListItemIcon, 
-  ListItemText, 
-  Avatar,
-  Grid,
-  Card,
-  CardContent,
-  CardHeader,
+  Grid, 
+  Card, 
+  CardContent, 
+  CardHeader, 
   IconButton,
-  Tooltip
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Avatar
 } from '@mui/material';
 import { 
   Work as WorkIcon, 
   LocationOn as LocationIcon, 
   Person as PersonIcon, 
   AccessTime as TimeIcon,
-  Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
-  Pending as PendingIcon,
   DirectionsCar as CarIcon,
   People as PeopleIcon,
   Edit as EditIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
-import { format, formatDistanceToNow, isPast, isToday, isFuture } from 'date-fns';
+import { isPast, isFuture } from 'date-fns';
 import { Job } from '../contexts/JobContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -69,7 +64,7 @@ const JobDetails: React.FC<JobDetailsProps> = ({
   
   // Determine job status
   const getJobStatus = () => {
-    const now = new Date();
+  
     if (job.status === 'completed') return 'Completed';
     if (job.status === 'cancelled') return 'Cancelled';
     if (isPast(endDate)) return 'Completed';

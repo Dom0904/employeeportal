@@ -1,18 +1,15 @@
-import React from 'react';
 import { 
   Box, 
-  Typography, 
   List, 
   ListItem, 
-  ListItemButton, 
   ListItemText, 
-  ListItemIcon,
-  ListItemSecondaryAction,
+  Typography, 
   Chip, 
-  Divider, 
+  Button, 
+  IconButton,
+  ListItemButton,
   Paper,
-  Button,
-  useTheme
+  ListItemIcon
 } from '@mui/material';
 import { 
   AccessTime as TimeIcon, 
@@ -20,7 +17,7 @@ import {
   Pending as PendingIcon,
   Error as ErrorIcon
 } from '@mui/icons-material';
-import { format, isToday, isTomorrow, isYesterday, isThisWeek, isSameDay, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import type { Job } from '../contexts/JobContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useJobs } from '../contexts/JobContext';
@@ -54,54 +51,7 @@ export const JobList: React.FC<JobListProps> = ({ jobsByStatus, onJobSelect, sel
   const { user } = useAuth();
   const { acknowledgeJob } = useJobs();
   const { showNotification } = useNotifications();
-  const theme = useTheme();
-  
-  // Group jobs by date
-  const groupJobsByDate = (jobs: Job[]) => {
-    const today = new Date();
-    const tomorrow = addDays(today, 1);
-    const yesterday = addDays(today, -1);
-    
-    const groups: { [key: string]: Job[] } = {
-      'Today': [],
-      'Tomorrow': [],
-      'Yesterday': [],
-      'This Week': [],
-      'Upcoming': [],
-      'Past': []
-    };
-    
-    jobs.forEach(job => {
-      const jobDate = new Date(job.timeStart);
-      
-      if (isToday(jobDate)) {
-        groups['Today'].push(job);
-      } else if (isTomorrow(jobDate)) {
-        groups['Tomorrow'].push(job);
-      } else if (isYesterday(jobDate)) {
-        groups['Yesterday'].push(job);
-      } else if (isThisWeek(jobDate, { weekStartsOn: 1 })) {
-        groups['This Week'].push(job);
-      } else if (jobDate > today) {
-        groups['Upcoming'].push(job);
-      } else {
-        groups['Past'].push(job);
-      }
-    });
-    
-    // Sort jobs within each group by time
-    Object.keys(groups).forEach(key => {
-      groups[key].sort((a, b) => 
-        new Date(a.timeStart).getTime() - new Date(b.timeStart).getTime()
-      );
-    });
-    
-    // Remove empty groups
-    return Object.entries(groups)
-      .filter(([_, jobs]) => jobs.length > 0)
-      .map(([title, jobs]) => ({ title, jobs }));
-  };
-  
+
   const needsAcknowledgment = (job: Job) => {
     if (!user) return false;
     const isAssignedToUser = job.personnelIds.includes(user.id) || job.driverId === user.id;
@@ -164,18 +114,6 @@ export const JobList: React.FC<JobListProps> = ({ jobsByStatus, onJobSelect, sel
           onClick={() => onJobSelect(job.id)}
           sx={{ py: 1.5, px: 2 }}
         >
-          <ListItemIcon sx={{ minWidth: 40 }}>
-            <Box 
-              sx={{ 
-                width: 10, 
-                height: 10, 
-                borderRadius: '50%', 
-                bgcolor: job.color || 'primary.main',
-                border: '2px solid white',
-                boxShadow: 1,
-              }} 
-            />
-          </ListItemIcon>
           <ListItemText
             primary={
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -259,13 +197,6 @@ export const JobList: React.FC<JobListProps> = ({ jobsByStatus, onJobSelect, sel
     );
   };
   
-  const renderJobGroup = (title: string, jobs: Job[]) => {
-    if (jobs.length === 0) return null;
-    
-    return (
-      <Box key={title} sx={{ mb: 3 }}>
-        <Typography 
-          variant="subtitle2" 
           sx={{ 
             fontWeight: 'bold', 
             color: 'text.secondary',
