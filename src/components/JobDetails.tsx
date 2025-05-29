@@ -27,7 +27,7 @@ import {
   Edit as EditIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
-import { isPast, isFuture } from 'date-fns';
+import { isPast, isFuture, format } from 'date-fns';
 import { Job } from '../contexts/JobContext';
 import { useAuth } from '../contexts/AuthContext';
 
