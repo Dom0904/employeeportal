@@ -231,3 +231,5 @@ const NotificationBell: React.FC = () => {
 };
 
 export default NotificationBell;
+
+export {}
