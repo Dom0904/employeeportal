@@ -200,10 +200,7 @@ const NotificationBell: React.FC = () => {
       </Box>
     </Box>
   </ListItem>
-)
-
-                  <Divider />
-                </React.Fragment>
+</React.Fragment>
               ))}
             </List>
           )}
