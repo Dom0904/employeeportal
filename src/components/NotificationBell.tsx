@@ -197,12 +197,22 @@ const NotificationBell: React.FC = () => {
                                   bgcolor: 'primary.main',
                                   ml: 1,
                                 }}
-                              />
-                            )}
                           </Box>
+                          {!notification.read && (
+                            <Box 
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                bgcolor: 'primary.main',
+                                ml: 1,
+                              }}
+                            />
+                          )}
                         </Box>
-                      </ListItem>
-                      <Divider />
+                      </Box>
+                    </ListItem>
+                    <Divider />
                   )}
                 </React.Fragment>
               ))}
