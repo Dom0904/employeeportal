@@ -1,5 +1,10 @@
+import { AuthProvider } from '../contexts/AuthContext';
 import Login from './Login';
 
 export default function Home() {
-  return <Login />;
+  return (
+    <AuthProvider>
+      <Login />
+    </AuthProvider>
+  );
 }
