@@ -67,26 +67,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
 
-  // Login with Supabase Auth (using email)
-  const login = async (email: string, password: string): Promise<boolean> => {
+  // Login with ID number and password
+  const login = async (idNumber: string, password: string): Promise<boolean> => {
     try {
-      console.log('Attempting login', email);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      console.log('Auth result:', data, error);
+      console.log('Attempting login with ID:', idNumber);
+      
+      // First, fetch the user's email from the profiles table using the ID number
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id_number', idNumber)
+        .single();
+
+      if (profileError || !profileData) {
+        alert('Invalid ID number or password');
+        return false;
+      }
+
+      // Now, log in with the email and password
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email: profileData.email, 
+        password 
+      });
+
       if (error || !data.user) {
         alert('Login failed: ' + (error?.message || 'Unknown error'));
         return false;
       }
+
       const profile = await fetchUserProfile(data.user.id);
-      console.log('Profile result:', profile);
       if (!profile) {
-        alert('Profile not found for this user. Please ensure the profiles table has a row with the correct id.');
+        alert('Profile not found for this user.');
         return false;
       }
+
       setUser(profile);
       return true;
     } catch (err: any) {
-      alert('Unexpected error during login: ' + (err?.message || err));
+      console.error('Login error:', err);
+      alert('An error occurred during login. Please try again.');
       return false;
     }
   };
@@ -139,19 +158,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // On mount, get current session and profile
   useEffect(() => {
     const getSession = async () => {
-      const { data } = await supabase.auth.getUser();
+      console.log('AuthContext: Attempting to get user session');
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('AuthContext: Error getting user session:', error);
+        setUser(null);
+        return;
+      }
+      console.log('AuthContext: getUser data:', data);
       if (data.user) {
+        console.log('AuthContext: User found, fetching profile for ID:', data.user.id);
         const profile = await fetchUserProfile(data.user.id);
-        if (profile) setUser(profile);
+        if (profile) {
+          console.log('AuthContext: Profile fetched:', profile);
+          setUser(profile);
+        } else {
+          console.log('AuthContext: Profile not found for user ID:', data.user.id);
+          setUser(null); // Ensure user is null if profile not found
+        }
+      } else {
+        console.log('AuthContext: No user session found');
+        setUser(null);
       }
     };
     getSession();
     // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+      console.log('AuthContext: Auth state change detected:', event, session);
       if (session?.user) {
+        console.log('AuthContext: Auth state change user found, fetching profile for ID:', session.user.id);
         const profile = await fetchUserProfile(session.user.id);
-        if (profile) setUser(profile);
+        if (profile) {
+          console.log('AuthContext: Auth state change profile fetched:', profile);
+          setUser(profile);
+        } else {
+          console.log('AuthContext: Auth state change profile not found for user ID:', session.user.id);
+          setUser(null); // Ensure user is null if profile not found
+        }
       } else {
+        console.log('AuthContext: Auth state change no user session');
         setUser(null);
       }
     });

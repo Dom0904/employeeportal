@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Grid, 
@@ -22,35 +22,44 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
+import { useJobs } from '../contexts/JobContext';
+import { format, isToday } from 'date-fns';
+import { useLeave } from '../contexts/LeaveContext';
+import { supabase } from '../supabaseClient';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const router = useRouter();
+  const { jobs } = useJobs();
+  const { leaveRequests } = useLeave();
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      const { data, error } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching announcements:', error);
+        return;
+      }
+      setAnnouncements(data || []);
+    };
+    fetchAnnouncements();
+  }, []);
   
   // Mock data for dashboard
-  const announcements = [
-    { id: 1, title: "Company Picnic", date: "2023-06-15", content: "Annual company picnic this weekend!" },
-    { id: 2, title: "New Project Launch", date: "2023-06-10", content: "Project X will be launched next week" },
-    { id: 3, title: "IT Maintenance", date: "2023-06-08", content: "Scheduled maintenance on Saturday" }
-  ];
-  
   const upcomingTasks = [
     { id: 1, title: "Complete Project Report", deadline: "2023-06-07" },
     { id: 2, title: "Team Meeting", deadline: "2023-06-06" },
     { id: 3, title: "Client Presentation", deadline: "2023-06-10" }
   ];
   
-  const leaveRequests = [
-    { id: 1, status: "Approved", dates: "2023-06-20 to 2023-06-22", type: "Vacation" },
-    { id: 2, status: "Pending", dates: "2023-07-05 to 2023-07-07", type: "Personal" }
-  ];
-  
-  const todaySchedule = [
-    { id: 1, time: "09:00 AM", title: "Morning Briefing" },
-    { id: 2, time: "11:00 AM", title: "Project Status Update" },
-    { id: 3, time: "02:00 PM", title: "Client Call" },
-    { id: 4, time: "04:30 PM", title: "Team Sync-up" }
-  ];
+  // Filter jobs for today's schedule
+  const todaySchedule = jobs.filter(job => isToday(new Date(job.timeStart)))
+    .map(job => ({
+      id: job.id,
+      time: format(new Date(job.timeStart), 'hh:mm a'), // Format time as needed
+      title: job.title,
+    }));
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -122,7 +131,7 @@ const Dashboard = () => {
                         secondary={
                           <>
                             <Typography component="span" variant="body2" color="primary">
-                              {announcement.date}
+                              {format(new Date(announcement.created_at), 'yyyy-MM-dd')}
                             </Typography>
                             {` — ${announcement.content}`}
                           </>
@@ -229,17 +238,19 @@ const Dashboard = () => {
             <Divider />
             <CardContent>
               <List>
+                {/* Use fetched leave requests */}
                 {leaveRequests.map((request, index) => (
                   <React.Fragment key={request.id}>
                     <ListItem>
                       <ListItemText
-                        primary={`${request.type} Leave`}
+                        primary={request.reason} // Use 'reason' from Supabase data
                         secondary={
                           <>
                             <Typography component="span" variant="body2" color="primary">
                               {request.status}
                             </Typography>
-                            {` — ${request.dates}`}
+                            {/* Use startDate and endDate from LeaveRequest type */}
+                            {` — ${format(new Date(request.startDate), 'yyyy-MM-dd')} to ${format(new Date(request.endDate), 'yyyy-MM-dd')}`}
                           </>
                         }
                       />
