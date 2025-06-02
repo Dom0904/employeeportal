@@ -158,7 +158,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [notificationMenuAnchorEl, setNotificationMenuAnchorEl] = useState<null | HTMLElement>(null);
   const { user, logout } = useAuth();
   const router = useRouter();
-  const location = router;
 
   // Mock notifications
   const notifications = [
@@ -193,11 +192,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.replace('/login');
   };
 
   const handleNavigation = (path: string) => {
-    router.push(path);
+    router.replace(path);
   };
 
   const handleGroupToggle = (groupName: string) => {
@@ -340,7 +339,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {showDashboard && (
             <ListItem disablePadding>
               <ListItemButton 
-                selected={location.pathname === dashboardItem.path}
+                selected={router.pathname === dashboardItem.path}
                 onClick={() => handleNavigation(dashboardItem.path)}
                 sx={{
                   '&.Mui-selected': {
@@ -356,7 +355,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 }}
               >
                 <ListItemIcon sx={{ 
-                  color: location.pathname === dashboardItem.path ? 'white' : 'primary.main' 
+                  color: router.pathname === dashboardItem.path ? 'white' : 'primary.main' 
                 }}>
                   {dashboardItem.icon}
                 </ListItemIcon>
@@ -384,7 +383,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   {group.items.map((item) => (
                     <ListItem key={item.text} disablePadding>
                       <ListItemButton 
-                        selected={location.pathname === item.path}
+                        selected={router.pathname === item.path}
                         onClick={() => handleNavigation(item.path)}
                         sx={{
                           pl: 4,
@@ -401,7 +400,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         }}
                       >
                         <ListItemIcon sx={{ 
-                          color: location.pathname === item.path ? 'white' : 'primary.main' 
+                          color: router.pathname === item.path ? 'white' : 'primary.main' 
                         }}>
                           {item.icon}
                         </ListItemIcon>
