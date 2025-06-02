@@ -40,13 +40,13 @@ const Login = () => {
     try {
       const success = await login(idNumber, password);
       if (success) {
-        router.push('/dashboard');
+        router.replace('/dashboard');
       } else {
         setError('Invalid ID number or password');
       }
     } catch (error) {
+      console.error('Login error:', error);
       setError('Failed to login. Please try again.');
-      console.error(error);
     } finally {
       setLoading(false);
     }

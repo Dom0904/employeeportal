@@ -75,12 +75,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // First, fetch the user's email from the profiles table using the ID number
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('email')
-        .eq('id_number', idNumber)
+        .select('email, id')
+        .eq('id', idNumber)
         .single();
 
       if (profileError || !profileData) {
-        alert('Invalid ID number or password');
+        console.error('Profile lookup error:', profileError);
         return false;
       }
 
@@ -91,13 +91,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       if (error || !data.user) {
-        alert('Login failed: ' + (error?.message || 'Unknown error'));
+        console.error('Auth error:', error);
         return false;
       }
 
       const profile = await fetchUserProfile(data.user.id);
       if (!profile) {
-        alert('Profile not found for this user.');
+        console.error('Profile not found after successful auth');
         return false;
       }
 
@@ -105,7 +105,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return true;
     } catch (err: any) {
       console.error('Login error:', err);
-      alert('An error occurred during login. Please try again.');
       return false;
     }
   };
