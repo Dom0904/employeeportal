@@ -158,19 +158,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // On mount, get current session and profile
   useEffect(() => {
     const getSession = async () => {
-      const { data } = await supabase.auth.getUser();
+      console.log('AuthContext: Attempting to get user session');
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('AuthContext: Error getting user session:', error);
+        setUser(null);
+        return;
+      }
+      console.log('AuthContext: getUser data:', data);
       if (data.user) {
+        console.log('AuthContext: User found, fetching profile for ID:', data.user.id);
         const profile = await fetchUserProfile(data.user.id);
-        if (profile) setUser(profile);
+        if (profile) {
+          console.log('AuthContext: Profile fetched:', profile);
+          setUser(profile);
+        } else {
+          console.log('AuthContext: Profile not found for user ID:', data.user.id);
+          setUser(null); // Ensure user is null if profile not found
+        }
+      } else {
+        console.log('AuthContext: No user session found');
+        setUser(null);
       }
     };
     getSession();
     // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+      console.log('AuthContext: Auth state change detected:', event, session);
       if (session?.user) {
+        console.log('AuthContext: Auth state change user found, fetching profile for ID:', session.user.id);
         const profile = await fetchUserProfile(session.user.id);
-        if (profile) setUser(profile);
+        if (profile) {
+          console.log('AuthContext: Auth state change profile fetched:', profile);
+          setUser(profile);
+        } else {
+          console.log('AuthContext: Auth state change profile not found for user ID:', session.user.id);
+          setUser(null); // Ensure user is null if profile not found
+        }
       } else {
+        console.log('AuthContext: Auth state change no user session');
         setUser(null);
       }
     });
