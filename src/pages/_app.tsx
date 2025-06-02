@@ -9,9 +9,14 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '../theme';
 
+import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 
 export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+  const noLayoutRoutes = ['/', '/login'];
+  const isNoLayout = noLayoutRoutes.includes(router.pathname);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -21,9 +26,13 @@ export default function App({ Component, pageProps }: AppProps) {
             <LeaveProvider>
               <InventoryProvider>
                 <BOMProvider>
-                  <Layout>
+                  {isNoLayout ? (
                     <Component {...pageProps} />
-                  </Layout>
+                  ) : (
+                    <Layout>
+                      <Component {...pageProps} />
+                    </Layout>
+                  )}
                 </BOMProvider>
               </InventoryProvider>
             </LeaveProvider>
