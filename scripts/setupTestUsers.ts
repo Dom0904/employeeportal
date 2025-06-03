@@ -14,6 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const testUsers = [
   {
     id: 'bb7952ab-23e3-49ba-81af-182a02e55265',
+    id_number: '1001',
     email: 'admin@edgetech.com',
     password: 'password',
     name: 'Admin User',
@@ -23,6 +24,7 @@ const testUsers = [
   },
   {
     id: '13ac868a-22b3-4cfc-a725-afa77cf377b7',
+    id_number: '1002',
     email: 'moderator@edgetech.com',
     password: 'password',
     name: 'Moderator User',
@@ -32,6 +34,7 @@ const testUsers = [
   },
   {
     id: '1f80490b-dd2c-47a9-8fc4-8346c4b0f2a2',
+    id_number: '1003',
     email: 'manager@edgetech.com',
     password: 'password',
     name: 'Manager User',
@@ -41,6 +44,7 @@ const testUsers = [
   },
   {
     id: '72135a2d-24b9-4b60-8afc-4b6eacd4c8c7',
+    id_number: '1004',
     email: 'user@edgetech.com',
     password: 'password',
     name: 'Regular User',
@@ -62,6 +66,7 @@ async function setupTestUsers() {
         .from('profiles')
         .upsert({
           id: user.id,
+          id_number: user.id_number,
           name: user.name,
           role: user.role,
           email: user.email,

@@ -12,6 +12,7 @@ export enum UserRole {
 // Define user interface
 export interface User {
   id: string;
+  id_number: string;
   name: string;
   role: UserRole;
   email: string;
@@ -53,6 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       return {
         id: data.id,
+        id_number: data.id_number,
         name: data.name,
         role: data.role as UserRole,
         email: data.email,
@@ -76,7 +78,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('email, id')
-        .eq('id', idNumber)
+        .eq('id_number', idNumber)
         .single();
 
       if (profileError || !profileData) {

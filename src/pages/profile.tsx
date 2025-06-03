@@ -210,8 +210,8 @@ const PersonalInfo = () => {
                 <TextField
                   fullWidth
                   label="ID Number"
-                  name="id"
-                  value={userInfo?.id || ''}
+                  name="id_number"
+                  value={userInfo?.id_number || ''}
                   disabled={true}
                   variant="filled"
                   InputProps={{

@@ -2,14 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  // Enable static exports for Vercel
-  output: 'export',
-  // Disable image optimization if not using next/image
-  images: {
-    unoptimized: true,
-  },
-  // Handle trailing slashes for static exports
-  trailingSlash: true,
   // Environment variables that should be available on the client side
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
