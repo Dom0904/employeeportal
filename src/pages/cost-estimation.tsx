@@ -45,7 +45,7 @@ interface CostEstimationItem {
   name: string;
   description: string;
   unit: string;
-  unitPrice: number;
+  unit_price: number;
   quantity: number;
   total: number;
 }
@@ -63,14 +63,14 @@ interface CostEstimationTemplate {
 const CostEstimation = () => {
   // Mock inventory items
   // const [inventoryItems] = useState<InventoryItem[]>([
-  //   { id: '1', name: 'Steel Pipe (1 inch)', description: '1 inch diameter steel pipe', unit: 'meter', unitPrice: 12.5, quantity: 500 },
-  //   { id: '2', name: 'Steel Pipe (2 inch)', description: '2 inch diameter steel pipe', unit: 'meter', unitPrice: 18.75, quantity: 300 },
-  //   { id: '3', name: 'Copper Wire', description: '12 gauge copper wire', unit: 'meter', unitPrice: 3.25, quantity: 1000 },
-  //   { id: '4', name: 'Electrical Conduit', description: 'PVC electrical conduit', unit: 'meter', unitPrice: 5.5, quantity: 750 },
-  //   { id: '5', name: 'Circuit Breaker', description: '20A circuit breaker', unit: 'piece', unitPrice: 15, quantity: 50 },
-  //   { id: '6', name: 'Light Switch', description: 'Standard light switch', unit: 'piece', unitPrice: 4.5, quantity: 100 },
-  //   { id: '7', name: 'Outlet', description: 'Standard electrical outlet', unit: 'piece', unitPrice: 3.75, quantity: 200 },
-  //   { id: '8', name: 'LED Light Bulb', description: '10W LED light bulb', unit: 'piece', unitPrice: 6.5, quantity: 150 },
+  //   { id: '1', name: 'Steel Pipe (1 inch)', description: '1 inch diameter steel pipe', unit: 'meter', unit_price: 12.5, quantity: 500 },
+  //   { id: '2', name: 'Steel Pipe (2 inch)', description: '2 inch diameter steel pipe', unit: 'meter', unit_price: 18.75, quantity: 300 },
+  //   { id: '3', name: 'Copper Wire', description: '12 gauge copper wire', unit: 'meter', unit_price: 3.25, quantity: 1000 },
+  //   { id: '4', name: 'Electrical Conduit', description: 'PVC electrical conduit', unit: 'meter', unit_price: 5.5, quantity: 750 },
+  //   { id: '5', name: 'Circuit Breaker', description: '20A circuit breaker', unit: 'piece', unit_price: 15, quantity: 50 },
+  //   { id: '6', name: 'Light Switch', description: 'Standard light switch', unit: 'piece', unit_price: 4.5, quantity: 100 },
+  //   { id: '7', name: 'Outlet', description: 'Standard electrical outlet', unit: 'piece', unit_price: 3.75, quantity: 200 },
+  //   { id: '8', name: 'LED Light Bulb', description: '10W LED light bulb', unit: 'piece', unit_price: 6.5, quantity: 150 },
   // ]);
 
   const { items: inventoryItems } = useInventory();
@@ -116,9 +116,9 @@ const CostEstimation = () => {
       name: selectedItem.product_name,
       description: selectedItem.description,
       unit: selectedItem.unit,
-      unitPrice: selectedItem.unitPrice,
+      unit_price: selectedItem.unit_price,
       quantity: itemQuantity,
-      total: selectedItem.unitPrice * itemQuantity
+      total: selectedItem.unit_price * itemQuantity
     };
     
     setEstimationItems(prev => [...prev, newItem]);
@@ -138,7 +138,7 @@ const CostEstimation = () => {
     setEstimationItems(prev => 
       prev.map(item => 
         item.id === itemId 
-          ? { ...item, quantity: newQuantity, total: item.unitPrice * newQuantity } 
+          ? { ...item, quantity: newQuantity, total: item.unit_price * newQuantity } 
           : item
       )
     );
@@ -284,7 +284,7 @@ const CostEstimation = () => {
             <TextField
               label="Unit Price"
               fullWidth
-              value={selectedItem ? formatCurrency(selectedItem.unitPrice) : ''}
+              value={selectedItem ? formatCurrency(selectedItem.unit_price) : ''}
               InputProps={{
                 readOnly: true,
               }}
@@ -324,7 +324,7 @@ const CostEstimation = () => {
               <TableRow key={item.id} hover>
                 <TableCell>{item.name}</TableCell>
                 <TableCell>{item.description}</TableCell>
-                <TableCell align="right">{formatCurrency(item.unitPrice)}</TableCell>
+                <TableCell align="right">{formatCurrency(item.unit_price)}</TableCell>
                 <TableCell align="right">
                   <TextField
                     type="number"

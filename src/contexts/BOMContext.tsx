@@ -227,9 +227,9 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name: inventoryItem?.product_name || 'Unknown Item',
             description: inventoryItem?.description || '',
             unit: inventoryItem?.unit || '',
-            unitPrice: inventoryItem?.unitPrice || 0,
+            unitPrice: inventoryItem?.unit_price || 0,
             quantity: item.quantity,
-            total: (inventoryItem?.unitPrice || 0) * item.quantity,
+            total: (inventoryItem?.unit_price || 0) * item.quantity,
         };
     });
 
