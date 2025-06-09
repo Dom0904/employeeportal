@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
-import { Badge, IconButton, Popover, List, ListItem, ListItemButton, Typography, Divider, Button, Box, Avatar } from '@mui/material';
+import {
+  Box,
+  Badge,
+  IconButton,
+  Menu,
+  MenuItem,
+  Typography,
+  Divider,
+  List,
+  ListItemButton,
+  Button,
+  Avatar,
+  Popover,
+} from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useNotifications } from '../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';

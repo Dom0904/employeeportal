@@ -33,11 +33,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Fetch inventory from Supabase on mount
   useEffect(() => {
     const fetchItems = async () => {
-      const { data, error } = await supabase.from('inventory').select('id, product_id, product_name, description, unit, unitPrice, quantity, status, last_updated, updated_by');
+      const { data, error } = await supabase.from('inventory').select('id, product_id, product_name, description, unit, unit_price, quantity, status, last_updated, updated_by');
       if (error) {
         showNotification({ type: 'error', message: 'Failed to fetch inventory' });
       } else if (data) {
-        setItems(data);
+        // Explicitly map data to InventoryItem to ensure unit_price is correctly assigned
+        const mappedData: InventoryItem[] = data.map((item: any) => ({
+          id: item.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          description: item.description,
+          unit: item.unit,
+          unit_price: item.unit_price || item.unitPrice, // Handle both potential casings during fetch
+          quantity: item.quantity,
+          status: item.status,
+          last_updated: item.last_updated,
+          updated_by: item.updated_by,
+        }));
+        setItems(mappedData);
       }
     };
     fetchItems();
@@ -52,11 +65,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       throw new Error('User must be logged in to add inventory items');
     }
 
-    const item: Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> & { last_updated: string; updated_by: string; status: InventoryStatus } = {
-      ...newItem,
+    const item = {
+      product_id: newItem.product_id,
+      product_name: newItem.product_name,
+      description: newItem.description,
+      unit: newItem.unit,
+      unit_price: newItem.unit_price,
+      quantity: newItem.quantity,
+      status: determineInventoryStatus(newItem.quantity),
       last_updated: new Date().toISOString(),
       updated_by: user.id,
-      status: determineInventoryStatus(newItem.quantity) // Automatically set status
     };
 
     // Insert into Supabase
@@ -84,19 +102,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       throw new Error('User must be logged in to edit inventory items');
     }
 
-    const updatesWithTimestamp: Partial<Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'>> & { last_updated?: string; updated_by?: string; status?: InventoryStatus } = {
+    const updatesToApply: any = {
       ...updates,
       last_updated: new Date().toISOString(),
-      updated_by: user.id
+      updated_by: user.id,
     };
 
     // If quantity is being updated, recalculate status
     if (updates.quantity !== undefined) {
-      updatesWithTimestamp.status = determineInventoryStatus(updates.quantity);
+      updatesToApply.status = determineInventoryStatus(updates.quantity);
+    }
+
+    // Map unit_price if present in updates (no longer need to map from unitPrice)
+    if (updates.unit_price !== undefined) { // Changed from updates.unitPrice
+      updatesToApply.unit_price = updates.unit_price; // Changed from updates.unitPrice
     }
 
     // Update in Supabase
-    const { data, error } = await supabase.from('inventory').update(updatesWithTimestamp).eq('id', id).select();
+    const { data, error } = await supabase.from('inventory').update(updatesToApply).eq('id', id).select();
     if (error) {
       showNotification({ type: 'error', message: `Failed to update item: ${error.message}` });
       return;

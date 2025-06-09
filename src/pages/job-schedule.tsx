@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
-  Container, 
   Typography, 
   Tabs, 
   Tab, 
@@ -18,11 +17,10 @@ import { CalendarMonth as CalendarIcon, List as ListIcon } from '@mui/icons-mate
 import { useAuth } from '../contexts/AuthContext';
 import { useJobs } from '../contexts/JobContext';
 import { JobCalendar, JobDetails, JobList } from '../components';
-import { format, isToday, isTomorrow, isThisWeek } from 'date-fns';
 
 const JobSchedule: React.FC = () => {
   const { user } = useAuth();
-  const { jobs, getJobsByUser, getJobById } = useJobs();
+  const { getJobsByUser, getJobById } = useJobs();
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState<number>(520);

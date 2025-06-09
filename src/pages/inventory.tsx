@@ -28,12 +28,7 @@ import { useInventory } from '../contexts/InventoryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { InventoryItem, InventoryStatus } from '../types/Inventory';
 
-interface InventoryFormData {
-  product_id: string;
-  product_name: string;
-  quantity: number;
-  status: InventoryStatus;
-}
+interface InventoryFormData extends Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> {}
 
 const getStatusColor = (status: InventoryStatus) => {
   switch (status) {
@@ -52,7 +47,7 @@ const getStatusColor = (status: InventoryStatus) => {
 
 const Inventory = () => {
   const { items, addItem, editItem, deleteItem } = useInventory();
-  const { user } = useAuth();
+  const { /* user */ } = useAuth();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -60,6 +55,9 @@ const Inventory = () => {
   const [formData, setFormData] = useState<InventoryFormData>({
     product_id: '',
     product_name: '',
+    description: '',
+    unit: '',
+    unit_price: 0,
     quantity: 0,
     status: 'in-stock',
   });
@@ -68,9 +66,12 @@ const Inventory = () => {
 
   const handleAdd = async () => {
     try {
-      const newItem = {
+      const newItem: Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> = {
         product_id: formData.product_id,
         product_name: formData.product_name,
+        description: formData.description,
+        unit: formData.unit,
+        unit_price: formData.unit_price,
         quantity: formData.quantity,
         status: formData.status,
       };
@@ -79,6 +80,9 @@ const Inventory = () => {
       setFormData({
         product_id: '',
         product_name: '',
+        description: '',
+        unit: '',
+        unit_price: 0,
         quantity: 0,
         status: 'in-stock',
       });
@@ -115,6 +119,9 @@ const Inventory = () => {
     setFormData({
       product_id: item.product_id,
       product_name: item.product_name,
+      description: item.description || '',
+      unit: item.unit || '',
+      unit_price: item.unit_price || 0,
       quantity: item.quantity,
       status: item.status,
     });
@@ -205,6 +212,30 @@ const Inventory = () => {
               }
             />
             <TextField
+              label="Description"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              multiline
+              rows={3}
+            />
+            <TextField
+              label="Unit"
+              value={formData.unit}
+              onChange={(e) =>
+                setFormData({ ...formData, unit: e.target.value })
+              }
+            />
+            <TextField
+              label="Unit Price"
+              type="number"
+              value={formData.unit_price}
+              onChange={(e) =>
+                setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })
+              }
+            />
+            <TextField
               label="Quantity"
               type="number"
               value={formData.quantity}
@@ -259,6 +290,30 @@ const Inventory = () => {
               value={formData.product_name}
               onChange={(e) =>
                 setFormData({ ...formData, product_name: e.target.value })
+              }
+            />
+            <TextField
+              label="Description"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              multiline
+              rows={3}
+            />
+            <TextField
+              label="Unit"
+              value={formData.unit}
+              onChange={(e) =>
+                setFormData({ ...formData, unit: e.target.value })
+              }
+            />
+            <TextField
+              label="Unit Price"
+              type="number"
+              value={formData.unit_price}
+              onChange={(e) =>
+                setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })
               }
             />
             <TextField

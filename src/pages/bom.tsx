@@ -95,10 +95,6 @@ const BOMPage = () => {
     setIsEditDialogOpen(true);
   };
 
-  const getInventoryItemDetails = (itemId: string): InventoryItem | undefined => {
-    return inventoryItems.find(item => item.id === itemId);
-  };
-
   const handleAddItem = () => {
     setFormData(prev => ({
       ...prev,

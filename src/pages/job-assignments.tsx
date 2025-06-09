@@ -72,7 +72,6 @@ const JobAssignments: React.FC = () => {
 
   // Only allow managers, supervisors, or admins
   const allowedRoles = ['manager', 'supervisor', 'admin'];
-  const notAllowed = !user || !allowedRoles.includes(user.role);
 
   // Prevent driver double-booking
   const isDriverBooked = (driverId: string, start: string, end: string) => {
@@ -95,20 +94,10 @@ const JobAssignments: React.FC = () => {
     return <Typography>Only managers, supervisors, or admins can assign jobs.</Typography>;
   }
 
-
-  if (!user) {
-    return <Typography>Please log in to assign jobs.</Typography>;
-  }
-  if (!allowedRoles.includes(user.role)) {
-    return <Typography>Only managers, supervisors, or admins can assign jobs.</Typography>;
-  }
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-
-
 
   const handleSelectChange = (e: SelectChangeEvent<string>) => {
     const { name, value } = e.target;

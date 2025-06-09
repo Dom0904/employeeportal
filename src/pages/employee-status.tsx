@@ -36,7 +36,7 @@ interface Employee {
   lastActive?: string;
 }
 
-const EmployeeStatus = () => {
+const EmployeeStatusPage = () => {
   const [employees, setEmployees] = useState<Employee[]>([
     {
       id: '1',
@@ -118,18 +118,6 @@ const EmployeeStatus = () => {
     
     setFilteredEmployees(result);
   }, [employees, statusFilter, departmentFilter, searchQuery]);
-
-  // Update employee status
-  const updateEmployeeStatus = (employeeId: string, newStatus: EmployeeStatus) => {
-    // In a real app, this would update the status in Supabase
-    setEmployees(prev => 
-      prev.map(emp => 
-        emp.id === employeeId 
-          ? { ...emp, status: newStatus, lastActive: newStatus === 'active' ? new Date().toISOString() : emp.lastActive } 
-          : emp
-      )
-    );
-  };
 
   // Format last active time
   const formatLastActive = (lastActive?: string) => {
@@ -268,4 +256,4 @@ const EmployeeStatus = () => {
   );
 };
 
-export default EmployeeStatus; 
+export default EmployeeStatusPage; 

@@ -16,7 +16,6 @@ import {
   DialogContentText,
   DialogTitle,
   TextField,
-  IconButton,
   Snackbar,
   Alert,
   FormControl,
@@ -27,7 +26,6 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { UserRole } from '../contexts/AuthContext';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -104,18 +102,16 @@ const EmployeeList = () => {
     setOpenAddDialog(false);
     setNewEmployee({
       name: '',
-      id_number: '', // Use id_number
+      id_number: '',
       email: '',
       phoneNumber: '',
       role: UserRole.REGULAR,
-      // Removed password
-      position: '' // Use position
+      position: ''
     });
   };
 
   const handleDeleteDialogOpen = (employee: Employee) => {
     setSelectedEmployee(employee);
-    setOpenDeleteDialog(true);
   };
 
   const handleDeleteDialogClose = () => {

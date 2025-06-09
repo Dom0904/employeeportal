@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, TextField, Paper, Grid, Chip, Divider, Stack, Select, MenuItem } from '@mui/material';
+import { Box, Typography, Button, TextField, Paper, Grid, Chip, Divider, Stack } from '@mui/material';
 import { useAuth, UserRole } from '../contexts/AuthContext';
 import { useLeave } from '../contexts/LeaveContext';
-import { LeaveRequest, LeaveStatus } from '../types/Leave';
+import { /* LeaveRequest, LeaveStatus */ } from '../types/Leave';
 import { format } from 'date-fns';
 
 const LeaveRequests = () => {

@@ -4,13 +4,12 @@ import { Add as AddIcon, Delete as DeleteIcon, Download as DownloadIcon, Picture
 import { useInventory } from '../contexts/InventoryContext';
 import { useAuth, UserRole } from '../contexts/AuthContext';
 import { useBOM } from '../contexts/BOMContext';
-import { InventoryItem } from '../types/Inventory';
 import { BOMItem } from '../types/BOM';
 
 const BillOfMaterial: React.FC = () => {
   const { items: inventoryItems } = useInventory();
   const { user } = useAuth();
-  const { exportBOMToPDF } = useBOM();
+  const { /* exportBOMToPDF */ } = useBOM();
   const isAdminOrManager = user && (user.role === UserRole.ADMIN || user.role === UserRole.MANAGER);
 
   // BOM state for this session (not persistent)
@@ -20,7 +19,7 @@ const BillOfMaterial: React.FC = () => {
 
   // Add a new empty row
   const handleAddRow = () => {
-    setBomRows([...bomRows, { id: crypto.randomUUID(), inventoryItemId: '', quantity: 1 }]);
+    setBomRows([...bomRows, { id: crypto.randomUUID(), inventoryitemid: '', quantity: 1 }]);
   };
 
   // Remove a row
@@ -38,8 +37,8 @@ const BillOfMaterial: React.FC = () => {
     const headers = ['Item No.', 'Item Name', 'Quantity'];
     if (isAdminOrManager) headers.push('Available Stock');
     const rows = bomRows.map(row => {
-      const item = inventoryItems.find(i => i.id === row.inventoryItemId);
-      const base = [item?.productId || '', item?.productName || '', row.quantity.toString()];
+      const item = inventoryItems.find(i => i.id === row.inventoryitemid);
+      const base = [item?.product_id || '', item?.product_name || '', row.quantity.toString()];
       if (isAdminOrManager) base.push(item ? item.quantity.toString() : '');
       return base;
     });
@@ -75,23 +74,23 @@ const BillOfMaterial: React.FC = () => {
           </TableHead>
           <TableBody>
             {bomRows.map((row, idx) => {
-              const item = inventoryItems.find(i => i.id === row.inventoryItemId);
+              const item = inventoryItems.find(i => i.id === row.inventoryitemid);
               return (
                 <TableRow key={row.id}>
                   <TableCell>
                     <Select
-                      value={row.inventoryItemId}
-                      onChange={e => handleRowChange(row.id, 'inventoryItemId', e.target.value)}
+                      value={row.inventoryitemid}
+                      onChange={e => handleRowChange(row.id, 'inventoryitemid', e.target.value)}
                       displayEmpty
                       sx={{ minWidth: 120 }}
                     >
                       <MenuItem value=""><em>Select</em></MenuItem>
                       {inventoryItems.map(inv => (
-                        <MenuItem key={inv.id} value={inv.id}>{inv.productId}</MenuItem>
+                        <MenuItem key={inv.id} value={inv.id}>{inv.product_id}</MenuItem>
                       ))}
                     </Select>
                   </TableCell>
-                  <TableCell>{item?.productName || ''}</TableCell>
+                  <TableCell>{item?.product_name || ''}</TableCell>
                   <TableCell>
                     <TextField
                       type="number"

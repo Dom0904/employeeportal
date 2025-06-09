@@ -51,7 +51,7 @@ const getRandomColor = () => {
 };
 
 export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { /* user */ } = useAuth();
   const { showNotification } = useNotifications();
   const [jobs, setJobs] = useState<Job[]>([]);
 

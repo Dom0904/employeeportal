@@ -35,7 +35,6 @@ import {
   Print as PrintIcon,
   ContentCopy as CopyIcon
 } from '@mui/icons-material';
-import { useNotifications } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
 import { InventoryItem } from '../types/Inventory';
 
@@ -99,11 +98,6 @@ const CostEstimation = () => {
     const newTotal = estimationItems.reduce((sum, item) => sum + item.total, 0);
     setTotalCost(newTotal);
   }, [estimationItems]);
-
-  // Get inventory item details from context by item ID
-  const getInventoryItemDetails = (itemId: string): InventoryItem | undefined => {
-    return inventoryItems.find(item => item.id === itemId);
-  };
 
   // Add item to estimation
   const handleAddItem = () => {
@@ -259,7 +253,7 @@ const CostEstimation = () => {
           <Grid item xs={12} md={6}>
             <Autocomplete
               options={inventoryItems}
-              getOptionLabel={(option) => option.name}
+              getOptionLabel={(option) => option.product_name}
               value={selectedItem}
               onChange={(_event, newValue) => setSelectedItem(newValue)}
               renderInput={(params) => (

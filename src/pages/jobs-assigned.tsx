@@ -3,10 +3,12 @@ import { Box, Typography, Paper } from '@mui/material';
 import { JobList } from '../components';
 import { useAuth } from '../contexts/AuthContext';
 import { useJobs } from '../contexts/JobContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const JobsAssigned = () => {
   const { user } = useAuth();
-  const { jobs, getJobsByUser } = useJobs();
+  const { getJobsByUser /*, jobs */ } = useJobs();
+  const { showNotification } = useNotifications();
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   // Get jobs assigned to the current user
