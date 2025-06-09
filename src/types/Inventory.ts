@@ -2,18 +2,21 @@ export type InventoryStatus = 'in-stock' | 'out-of-stock' | 'restock' | 'low-sto
 
 export interface InventoryItem {
   id: string;
-  productId: string;
-  productName: string;
+  product_id: string;
+  product_name: string;
+  description: string;
+  unit: string;
+  unitPrice: number;
   quantity: number;
   status: InventoryStatus;
-  lastUpdated: string;
-  updatedBy: string;
+  last_updated: string;
+  updated_by: string;
 }
 
 export interface InventoryContextType {
   items: InventoryItem[];
-  addItem: (item: Omit<InventoryItem, 'id' | 'lastUpdated' | 'updatedBy'>) => Promise<void>;
-  editItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
+  addItem: (item: Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'>) => Promise<void>;
+  editItem: (id: string, updates: Partial<Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'>>) => Promise<void>;
   deleteItem: (id: string, password: string) => Promise<void>;
   getItemById: (id: string) => InventoryItem | undefined;
   getItemByProductId: (productId: string) => InventoryItem | undefined;

@@ -105,9 +105,9 @@ const BOMPage = () => {
       items: [
         ...prev.items,
         {
-          id: crypto.randomUUID(),
-          inventoryItemId: '',
-          quantity: 0,
+          id: '',
+          inventoryitemid: '',
+          quantity: 1,
         },
       ],
     }));
@@ -120,15 +120,12 @@ const BOMPage = () => {
     }));
   };
 
-  const handleItemChange = (index: number, field: keyof BOMItem, value: string | number) => {
+  const handleItemChange = (index: number, field: keyof BOMItem, value: any) => {
     setFormData(prev => ({
       ...prev,
-      items: prev.items.map((item, i) => {
-        if (i === index) {
-          return { ...item, [field]: value };
-        }
-        return item;
-      }),
+      items: prev.items.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      ),
     }));
   };
 
@@ -262,9 +259,9 @@ const BOMPage = () => {
                 <TextField
                   select
                   label="Product"
-                  value={item.inventoryItemId}
+                  value={item.inventoryitemid}
                   onChange={(e) =>
-                    handleItemChange(index, 'inventoryItemId', e.target.value)
+                    handleItemChange(index, 'inventoryitemid', e.target.value)
                   }
                   sx={{ flexGrow: 1 }}
                   SelectProps={{ native: true }}
@@ -272,7 +269,7 @@ const BOMPage = () => {
                   <option value="">Select a product</option>
                   {inventoryItems.map((invItem) => (
                     <option key={invItem.id} value={invItem.id}>
-                      {invItem.productName} ({invItem.productId})
+                      {invItem.product_id} - {invItem.product_name}
                     </option>
                   ))}
                 </TextField>

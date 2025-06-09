@@ -35,16 +35,9 @@ import {
   Print as PrintIcon,
   ContentCopy as CopyIcon
 } from '@mui/icons-material';
-
-// Inventory item interface
-interface InventoryItem {
-  id: string;
-  name: string;
-  description: string;
-  unit: string;
-  unitPrice: number;
-  quantity: number;
-}
+import { useNotifications } from '../contexts/NotificationContext';
+import { useInventory } from '../contexts/InventoryContext';
+import { InventoryItem } from '../types/Inventory';
 
 // Cost estimation item interface
 interface CostEstimationItem {
@@ -70,16 +63,18 @@ interface CostEstimationTemplate {
 
 const CostEstimation = () => {
   // Mock inventory items
-  const [inventoryItems] = useState<InventoryItem[]>([
-    { id: '1', name: 'Steel Pipe (1 inch)', description: '1 inch diameter steel pipe', unit: 'meter', unitPrice: 12.5, quantity: 500 },
-    { id: '2', name: 'Steel Pipe (2 inch)', description: '2 inch diameter steel pipe', unit: 'meter', unitPrice: 18.75, quantity: 300 },
-    { id: '3', name: 'Copper Wire', description: '12 gauge copper wire', unit: 'meter', unitPrice: 3.25, quantity: 1000 },
-    { id: '4', name: 'Electrical Conduit', description: 'PVC electrical conduit', unit: 'meter', unitPrice: 5.5, quantity: 750 },
-    { id: '5', name: 'Circuit Breaker', description: '20A circuit breaker', unit: 'piece', unitPrice: 15, quantity: 50 },
-    { id: '6', name: 'Light Switch', description: 'Standard light switch', unit: 'piece', unitPrice: 4.5, quantity: 100 },
-    { id: '7', name: 'Outlet', description: 'Standard electrical outlet', unit: 'piece', unitPrice: 3.75, quantity: 200 },
-    { id: '8', name: 'LED Light Bulb', description: '10W LED light bulb', unit: 'piece', unitPrice: 6.5, quantity: 150 },
-  ]);
+  // const [inventoryItems] = useState<InventoryItem[]>([
+  //   { id: '1', name: 'Steel Pipe (1 inch)', description: '1 inch diameter steel pipe', unit: 'meter', unitPrice: 12.5, quantity: 500 },
+  //   { id: '2', name: 'Steel Pipe (2 inch)', description: '2 inch diameter steel pipe', unit: 'meter', unitPrice: 18.75, quantity: 300 },
+  //   { id: '3', name: 'Copper Wire', description: '12 gauge copper wire', unit: 'meter', unitPrice: 3.25, quantity: 1000 },
+  //   { id: '4', name: 'Electrical Conduit', description: 'PVC electrical conduit', unit: 'meter', unitPrice: 5.5, quantity: 750 },
+  //   { id: '5', name: 'Circuit Breaker', description: '20A circuit breaker', unit: 'piece', unitPrice: 15, quantity: 50 },
+  //   { id: '6', name: 'Light Switch', description: 'Standard light switch', unit: 'piece', unitPrice: 4.5, quantity: 100 },
+  //   { id: '7', name: 'Outlet', description: 'Standard electrical outlet', unit: 'piece', unitPrice: 3.75, quantity: 200 },
+  //   { id: '8', name: 'LED Light Bulb', description: '10W LED light bulb', unit: 'piece', unitPrice: 6.5, quantity: 150 },
+  // ]);
+
+  const { items: inventoryItems } = useInventory();
 
   // Cost estimation state
   const [estimationItems, setEstimationItems] = useState<CostEstimationItem[]>([]);
@@ -105,6 +100,11 @@ const CostEstimation = () => {
     setTotalCost(newTotal);
   }, [estimationItems]);
 
+  // Get inventory item details from context by item ID
+  const getInventoryItemDetails = (itemId: string): InventoryItem | undefined => {
+    return inventoryItems.find(item => item.id === itemId);
+  };
+
   // Add item to estimation
   const handleAddItem = () => {
     if (!selectedItem) return;
@@ -119,7 +119,7 @@ const CostEstimation = () => {
     const newItem: CostEstimationItem = {
       id: `item-${Date.now()}`,
       itemId: selectedItem.id,
-      name: selectedItem.name,
+      name: selectedItem.product_name,
       description: selectedItem.description,
       unit: selectedItem.unit,
       unitPrice: selectedItem.unitPrice,
@@ -261,8 +261,14 @@ const CostEstimation = () => {
               options={inventoryItems}
               getOptionLabel={(option) => option.name}
               value={selectedItem}
-              onChange={(_, newValue) => setSelectedItem(newValue)}
-              renderInput={(params) => <TextField {...params} label="Select Item from Inventory" fullWidth />}
+              onChange={(_event, newValue) => setSelectedItem(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select Inventory Item"
+                  variant="outlined"
+                />
+              )}
             />
           </Grid>
           <Grid item xs={12} md={2}>

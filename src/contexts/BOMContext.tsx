@@ -33,7 +33,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
       // Get all BOM items
-      const { data: itemData, error: itemError } = await supabase.from('bom_items').select('*');
+      const { data: itemData, error: itemError } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity');
       if (itemError) {
         showNotification({ type: 'error', message: 'Failed to fetch BOM items' });
         return;
@@ -43,7 +43,12 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const itemList = itemData || [];
       const bomsWithItems = bomList.map((bom: any) => ({
         ...bom,
-        items: itemList.filter((item: any) => item.bom_id === bom.id)
+        items: itemList.filter((item: any) => item.bom_id === bom.id).map((item: any) => ({
+            id: item.id,
+            bom_id: item.bom_id,
+            inventoryitemid: item.inventoryitemid,
+            quantity: item.quantity
+        }))
       }));
       setBoms(bomsWithItems);
     };
@@ -74,7 +79,12 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     // Insert BOM items
-    const itemsToInsert = newBom.items.map(item => ({ ...item, id: crypto.randomUUID(), bom_id: bomId }));
+    const itemsToInsert = newBom.items.map(item => ({
+        id: crypto.randomUUID(),
+        bom_id: bomId,
+        inventoryitemid: item.inventoryitemid,
+        quantity: item.quantity
+    }));
     const { error: itemError } = await supabase.from('bom_items').insert(itemsToInsert);
     if (itemError) {
       showNotification({ type: 'error', message: 'Failed to create BOM items' });
@@ -109,15 +119,25 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Delete existing items
       await supabase.from('bom_items').delete().eq('bom_id', id);
       // Insert new items
-      const itemsToInsert = updates.items.map(item => ({ ...item, id: crypto.randomUUID(), bom_id: id }));
+      const itemsToInsert = updates.items.map(item => ({
+          id: crypto.randomUUID(),
+          bom_id: id,
+          inventoryitemid: item.inventoryitemid,
+          quantity: item.quantity
+      }));
       await supabase.from('bom_items').insert(itemsToInsert);
     }
     // Refresh BOMs
     const { data: bomData } = await supabase.from('boms').select('*');
-    const { data: itemData } = await supabase.from('bom_items').select('*');
+    const { data: itemData } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity');
     const bomsWithItems = (bomData ?? []).map((bom: any) => ({
       ...bom,
-      items: (itemData ?? []).filter((item: any) => item.bom_id === bom.id)
+      items: (itemData ?? []).filter((item: any) => item.bom_id === bom.id).map((item: any) => ({
+          id: item.id,
+          bom_id: item.bom_id,
+          inventoryitemid: item.inventoryitemid,
+          quantity: item.quantity
+      }))
     }));
     setBoms(bomsWithItems);
     showNotification({
@@ -168,10 +188,10 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Create table data
     const tableData = bom.items.map(item => {
-      const inventoryItem = inventoryItems.find(i => i.id === item.inventoryItemId);
+      const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
       return [
-        inventoryItem?.productId || '',
-        inventoryItem?.productName || '',
+        inventoryItem?.product_id || '',
+        inventoryItem?.product_name || '',
         item.quantity.toString(),
       ];
     });
@@ -195,11 +215,33 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const importBOMToCostEstimation = useCallback(async (id: string) => {
     // This is a placeholder - you'll need to implement the actual import logic
     // based on your cost estimation feature requirements
+    const bomToImport = getBOMById(id);
+    if (!bomToImport) return;
+
+    // Map BOM items to CostEstimation items structure if needed for the other component
+    const costEstimationItems = bomToImport.items.map(item => {
+        const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
+        return {
+            id: `ce-item-${item.id}`,
+            itemId: item.inventoryitemid,
+            name: inventoryItem?.product_name || 'Unknown Item',
+            description: inventoryItem?.description || '',
+            unit: inventoryItem?.unit || '',
+            unitPrice: inventoryItem?.unitPrice || 0,
+            quantity: item.quantity,
+            total: (inventoryItem?.unitPrice || 0) * item.quantity,
+        };
+    });
+
+    // You would then typically pass costEstimationItems to the Cost Estimation component
+    // For now, we'll just log it and show a notification.
+    console.log('Imported items for Cost Estimation:', costEstimationItems);
+
     showNotification({
       type: 'success',
       message: 'BOM imported to Cost Estimation successfully'
     });
-  }, [showNotification]);
+  }, [getBOMById, inventoryItems, showNotification]);
 
   const value = {
     boms,

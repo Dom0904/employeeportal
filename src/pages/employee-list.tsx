@@ -31,65 +31,32 @@ import {
 } from '@mui/icons-material';
 import { UserRole } from '../contexts/AuthContext';
 import { SelectChangeEvent } from '@mui/material/Select';
+import { supabase } from '../supabaseClient'; // Import supabase
+import { User } from '../contexts/AuthContext'; // Import User interface
 
 // Mock database for now - in a real app, this would use Supabase
-interface Employee {
-  id: string;
-  idNumber: string;
-  name: string;
-  email: string;
-  phoneNumber: string;
-  role: UserRole;
-  password: string;
-  jobPosition: string;
-  profilePicture?: string;
+// Removed Mock database comment and interface below
+
+interface Employee extends User { // Extend User interface
+  // The User interface already has id, id_number, name, email, phoneNumber, position, profilePicture
+  // We can keep jobPosition for display purposes if it's different from position, but align data fetching to 'position'
+  jobPosition?: string; // Optional if it maps to 'position'
 }
 
 const EmployeeList = () => {
-  const [employees, setEmployees] = useState<Employee[]>([
-    {
-      id: '1',
-      idNumber: '1001',
-      name: 'John Doe',
-      email: 'john@edgetech.com',
-      phoneNumber: '123-456-7890',
-      role: UserRole.ADMIN,
-      password: 'password',
-      jobPosition: 'Senior Engineer'
-    },
-    {
-      id: '2',
-      idNumber: '1002',
-      name: 'Jane Smith',
-      email: 'jane@edgetech.com',
-      phoneNumber: '123-456-7891',
-      role: UserRole.MANAGER,
-      password: 'password',
-      jobPosition: 'Project Manager'
-    },
-    {
-      id: '3',
-      idNumber: '1003',
-      name: 'Bob Johnson',
-      email: 'bob@edgetech.com',
-      phoneNumber: '123-456-7892',
-      role: UserRole.REGULAR,
-      password: 'password',
-      jobPosition: 'Technician'
-    }
-  ]);
-  
+  // Removed mock employees useState
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [newEmployee, setNewEmployee] = useState<Partial<Employee>>({
     name: '',
-    idNumber: '',
+    id_number: '', // Use id_number
     email: '',
     phoneNumber: '',
     role: UserRole.REGULAR,
-    password: '',
-    jobPosition: ''
+    // Removed password from newEmployee state, handle separately or via auth
+    position: '' // Use position
   });
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -97,25 +64,37 @@ const EmployeeList = () => {
 
   // In a real app, this would fetch data from Supabase
   useEffect(() => {
-    // Fetch employees from Supabase
-    // const fetchEmployees = async () => {
-    //   try {
-    //     const { data, error } = await supabase
-    //       .from('employees')
-    //       .select('*');
-    //
-    //     if (error) throw error;
-    //     if (data) setEmployees(data);
-    //   } catch (error) {
-    //     console.error('Error fetching employees:', error);
-    //     setSnackbarMessage('Failed to load employees');
-    //     setSnackbarSeverity('error');
-    //     setSnackbarOpen(true);
-    //   }
-    // };
-    //
-    // fetchEmployees();
-  }, []);
+    // Fetch employees from Supabase (profiles table)
+    const fetchEmployees = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, id_number, name, email, phone_number, position, role, profile_picture'); // Select necessary fields
+
+        if (error) throw error;
+        // Map fetched data to Employee interface (which extends User)
+        const employeeData: Employee[] = data.map(profile => ({
+          id: profile.id,
+          id_number: profile.id_number,
+          name: profile.name,
+          email: profile.email,
+          phoneNumber: profile.phone_number || '', // Handle potential nulls
+          position: profile.position || '', // Handle potential nulls
+          role: profile.role as UserRole, // Cast role
+          profilePicture: profile.profile_picture || undefined,
+          jobPosition: profile.position || '', // Map position to jobPosition for display if needed
+        }));
+        setEmployees(employeeData);
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        setSnackbarMessage('Failed to load employees');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    };
+
+    fetchEmployees();
+  }, []); // Empty dependency array to fetch only on mount
 
   const handleAddDialogOpen = () => {
     setOpenAddDialog(true);
@@ -125,12 +104,12 @@ const EmployeeList = () => {
     setOpenAddDialog(false);
     setNewEmployee({
       name: '',
-      idNumber: '',
+      id_number: '', // Use id_number
       email: '',
       phoneNumber: '',
       role: UserRole.REGULAR,
-      password: '',
-      jobPosition: ''
+      // Removed password
+      position: '' // Use position
     });
   };
 
@@ -146,41 +125,41 @@ const EmployeeList = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<UserRole>) => {
     const { name, value } = e.target;
+    // Cast name to keyof Partial<Employee> to allow updating Partial state
     setNewEmployee({
       ...newEmployee,
-      [name]: value,
+      [name as keyof Partial<Employee>]: value,
     });
   };
 
   const handleAddEmployee = async () => {
     try {
       // Validate required fields
-      if (!newEmployee.name || !newEmployee.idNumber || !newEmployee.password) {
-        setSnackbarMessage('Name, ID Number, and Password are required');
+      if (!newEmployee.name || !newEmployee.id_number) { // Validate name and id_number
+        setSnackbarMessage('Name and ID Number are required');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
       }
 
-      // In a real app, this would add to Supabase
-      // const { data, error } = await supabase
-      //   .from('employees')
-      //   .insert([newEmployee]);
-      //
-      // if (error) throw error;
-
-      // For now, just add to our local state
-      const newEmployeeWithId = {
-        ...newEmployee,
-        id: Date.now().toString() // Generate a temporary ID
-      } as Employee;
-      
-      setEmployees(prev => [...prev, newEmployeeWithId]);
-      handleAddDialogClose();
-      
-      setSnackbarMessage('Employee added successfully');
+      // In a real app, creating a new user would involve Supabase Auth signUp
+      // and then inserting the profile data. Direct insertion into profiles table
+      // with password is not the standard secure approach.
+      // For now, we will disable client-side add employee functionality.
+      setSnackbarMessage('Adding employees is currently disabled in this demo.');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
+      // Commenting out the actual add logic for now
+      // const { data, error } = await supabase
+      //   .from('profiles') // Assuming profiles table for employee data
+      //   .insert([{ ...newEmployee, id_number: newEmployee.id_number, position: newEmployee.position }]); // Map fields
+      // if (error) throw error;
+      // // Refresh the list after adding
+      // fetchEmployees(); // You might want a more efficient way to update state
+      // handleAddDialogClose();
+      // setSnackbarMessage('Employee added successfully');
+      // setSnackbarSeverity('success');
+      // setSnackbarOpen(true);
     } catch (error) {
       console.error('Error adding employee:', error);
       setSnackbarMessage('Failed to add employee');
@@ -191,23 +170,27 @@ const EmployeeList = () => {
 
   const handleDeleteEmployee = async () => {
     if (!selectedEmployee) return;
-    
+
     try {
-      // In a real app, this would delete from Supabase
+      // In a real app, deleting a user involves Supabase Auth deletion
+      // and cascading delete on the profiles table.
+      // Direct deletion from profiles might leave orphaned auth users.
+      // For now, we will disable client-side delete employee functionality.
+       setSnackbarMessage('Deleting employees is currently disabled in this demo.');
+       setSnackbarSeverity('success');
+       setSnackbarOpen(true);
+      // Commenting out the actual delete logic for now
       // const { error } = await supabase
-      //   .from('employees')
+      //   .from('profiles')
       //   .delete()
       //   .eq('id', selectedEmployee.id);
-      //
       // if (error) throw error;
-
-      // For now, just remove from our local state
-      setEmployees(prev => prev.filter(emp => emp.id !== selectedEmployee.id));
-      handleDeleteDialogClose();
-      
-      setSnackbarMessage('Employee removed successfully');
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
+      // // Refresh the list after deleting
+      // fetchEmployees(); // You might want a more efficient way to update state
+      // handleDeleteDialogClose();
+      // setSnackbarMessage('Employee removed successfully');
+      // setSnackbarSeverity('success');
+      // setSnackbarOpen(true);
     } catch (error) {
       console.error('Error deleting employee:', error);
       setSnackbarMessage('Failed to remove employee');
@@ -251,20 +234,35 @@ const EmployeeList = () => {
           </TableHead>
           <TableBody>
             {employees.map((employee) => (
-              <TableRow key={employee.id} hover>
-                <TableCell>{employee.idNumber}</TableCell>
+              <TableRow key={employee.id}>
+                <TableCell>{employee.id_number}</TableCell> {/* Use id_number */}
                 <TableCell>{employee.name}</TableCell>
-                <TableCell>{employee.jobPosition}</TableCell>
+                <TableCell>{employee.position}</TableCell> {/* Use position */}
                 <TableCell>{employee.email}</TableCell>
-                <TableCell>{employee.phoneNumber}</TableCell>
+                <TableCell>{employee.phoneNumber}</TableCell> {/* Use phoneNumber */}
                 <TableCell>{employee.role}</TableCell>
                 <TableCell align="center">
-                  <IconButton color="error" onClick={() => handleDeleteDialogOpen(employee)}>
-                    <DeleteIcon />
-                  </IconButton>
+                  {/* Edit functionality would need to be implemented to update Supabase */}
+                  {/* Delete button - temporarily commented out */}
+                  {/* <Tooltip title="Delete">*/}
+                  {/*   <IconButton */}
+                  {/*     onClick={() => handleDeleteDialogOpen(employee)} */}
+                  {/*     size="small" */}
+                  {/*     color="error" */}
+                  {/*   > */}
+                  {/*     <DeleteIcon /> */}
+                  {/*   </IconButton> */}
+                  {/* </Tooltip> */}
                 </TableCell>
               </TableRow>
             ))}
+            {employees.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} align="center">
+                  No employees found.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
@@ -290,34 +288,23 @@ const EmployeeList = () => {
           />
           <TextField
             margin="dense"
-            name="idNumber"
+            name="id_number"
             label="ID Number"
             type="text"
             fullWidth
             variant="outlined"
-            value={newEmployee.idNumber}
+            value={newEmployee.id_number}
             onChange={handleInputChange}
             sx={{ mb: 2 }}
           />
           <TextField
             margin="dense"
-            name="password"
-            label="Password"
-            type="password"
-            fullWidth
-            variant="outlined"
-            value={newEmployee.password}
-            onChange={handleInputChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="jobPosition"
+            name="position"
             label="Job Position"
             type="text"
             fullWidth
             variant="outlined"
-            value={newEmployee.jobPosition}
+            value={newEmployee.position}
             onChange={handleInputChange}
             sx={{ mb: 2 }}
           />

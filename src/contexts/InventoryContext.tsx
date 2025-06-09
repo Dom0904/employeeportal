@@ -1,8 +1,21 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { InventoryItem, InventoryContextType } from '../types/Inventory';
+import { InventoryItem, InventoryContextType, InventoryStatus } from '../types/Inventory';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
 import { supabase } from '../supabaseClient';
+
+// Helper function to determine status based on quantity (assuming max stock of 100)
+const determineInventoryStatus = (quantity: number): InventoryStatus => {
+  if (quantity === 0) {
+    return 'out-of-stock';
+  } else if (quantity <= 10) {
+    return 'restock';
+  } else if (quantity <= 25) {
+    return 'low-stock';
+  } else {
+    return 'in-stock';
+  }
+};
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
@@ -20,7 +33,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Fetch inventory from Supabase on mount
   useEffect(() => {
     const fetchItems = async () => {
-      const { data, error } = await supabase.from('inventory').select('*');
+      const { data, error } = await supabase.from('inventory').select('id, product_id, product_name, description, unit, unitPrice, quantity, status, last_updated, updated_by');
       if (error) {
         showNotification({ type: 'error', message: 'Failed to fetch inventory' });
       } else if (data) {
@@ -33,65 +46,75 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { user, verifyPassword } = useAuth();
 
   const addItem = useCallback(async (
-    newItem: Omit<InventoryItem, 'id' | 'lastUpdated' | 'updatedBy'>
+    newItem: Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'>
   ) => {
     if (!user) {
       throw new Error('User must be logged in to add inventory items');
     }
 
-    const item: InventoryItem = {
+    const item: Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> & { last_updated: string; updated_by: string; status: InventoryStatus } = {
       ...newItem,
-      id: crypto.randomUUID(),
-      lastUpdated: new Date().toISOString(),
-      updatedBy: user.id
+      last_updated: new Date().toISOString(),
+      updated_by: user.id,
+      status: determineInventoryStatus(newItem.quantity) // Automatically set status
     };
 
     // Insert into Supabase
-    const { data, error } = await supabase.from('inventory').insert([item]);
+    const { data, error } = await supabase.from('inventory').insert([item]).select();
     if (error) {
       showNotification({ type: 'error', message: `Failed to add item: ${error.message}` });
       return;
     }
-    setItems(prev => [...prev, item]);
-    showNotification({
-      type: 'success',
-      message: `Added ${item.productName} to inventory`
-    });
+    if (data && data.length > 0) {
+      setItems(prev => [...prev, data[0]]);
+      showNotification({
+        type: 'success',
+        message: `Added ${data[0].product_name} to inventory`
+      });
+    } else {
+      showNotification({ type: 'error', message: 'Failed to add item: No data returned from insert' });
+    }
   }, [user, showNotification]);
 
   const editItem = useCallback(async (
     id: string,
-    updates: Partial<InventoryItem>
+    updates: Partial<Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'>>
   ) => {
     if (!user) {
       throw new Error('User must be logged in to edit inventory items');
     }
 
-    // Update in Supabase
-    const { error } = await supabase.from('inventory').update({
+    const updatesWithTimestamp: Partial<Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'>> & { last_updated?: string; updated_by?: string; status?: InventoryStatus } = {
       ...updates,
-      lastUpdated: new Date().toISOString(),
-      updatedBy: user.id
-    }).eq('id', id);
+      last_updated: new Date().toISOString(),
+      updated_by: user.id
+    };
+
+    // If quantity is being updated, recalculate status
+    if (updates.quantity !== undefined) {
+      updatesWithTimestamp.status = determineInventoryStatus(updates.quantity);
+    }
+
+    // Update in Supabase
+    const { data, error } = await supabase.from('inventory').update(updatesWithTimestamp).eq('id', id).select();
     if (error) {
       showNotification({ type: 'error', message: `Failed to update item: ${error.message}` });
       return;
     }
-    setItems(prev => prev.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          ...updates,
-          lastUpdated: new Date().toISOString(),
-          updatedBy: user.id
-        };
-      }
-      return item;
-    }));
-    showNotification({
-      type: 'success',
-      message: `Updated inventory item`
-    });
+    if (data && data.length > 0) {
+      setItems(prev => prev.map(item => {
+        if (item.id === id) {
+          return data[0];
+        }
+        return item;
+      }));
+      showNotification({
+        type: 'success',
+        message: 'Updated inventory item'
+      });
+    } else {
+      showNotification({ type: 'error', message: 'Failed to update item: No data returned from update' });
+    }
   }, [user, showNotification]);
 
   const deleteItem = useCallback(async (
@@ -122,7 +145,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setItems(prev => prev.filter(item => item.id !== id));
     showNotification({
       type: 'success',
-      message: `Deleted ${itemToDelete.productName} from inventory`
+      message: `Deleted ${itemToDelete.product_name} from inventory`
     });
   }, [user, items, verifyPassword, showNotification]);
 
@@ -131,7 +154,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [items]);
 
   const getItemByProductId = useCallback((productId: string) => {
-    return items.find(item => item.productId === productId);
+    return items.find(item => item.product_id === productId);
   }, [items]);
 
   const value = {

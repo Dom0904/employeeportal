@@ -29,8 +29,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { InventoryItem, InventoryStatus } from '../types/Inventory';
 
 interface InventoryFormData {
-  productId: string;
-  productName: string;
+  product_id: string;
+  product_name: string;
   quantity: number;
   status: InventoryStatus;
 }
@@ -58,8 +58,8 @@ const Inventory = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [formData, setFormData] = useState<InventoryFormData>({
-    productId: '',
-    productName: '',
+    product_id: '',
+    product_name: '',
     quantity: 0,
     status: 'in-stock',
   });
@@ -68,11 +68,17 @@ const Inventory = () => {
 
   const handleAdd = async () => {
     try {
-      await addItem(formData);
+      const newItem = {
+        product_id: formData.product_id,
+        product_name: formData.product_name,
+        quantity: formData.quantity,
+        status: formData.status,
+      };
+      await addItem(newItem);
       setIsAddDialogOpen(false);
       setFormData({
-        productId: '',
-        productName: '',
+        product_id: '',
+        product_name: '',
         quantity: 0,
         status: 'in-stock',
       });
@@ -107,8 +113,8 @@ const Inventory = () => {
   const openEditDialog = (item: InventoryItem) => {
     setSelectedItem(item);
     setFormData({
-      productId: item.productId,
-      productName: item.productName,
+      product_id: item.product_id,
+      product_name: item.product_name,
       quantity: item.quantity,
       status: item.status,
     });
@@ -147,8 +153,8 @@ const Inventory = () => {
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>{item.productId}</TableCell>
-                <TableCell>{item.productName}</TableCell>
+                <TableCell>{item.product_id}</TableCell>
+                <TableCell>{item.product_name}</TableCell>
                 <TableCell align="right">{item.quantity}</TableCell>
                 <TableCell>
                   <Chip
@@ -186,16 +192,16 @@ const Inventory = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <TextField
               label="Product ID"
-              value={formData.productId}
+              value={formData.product_id}
               onChange={(e) =>
-                setFormData({ ...formData, productId: e.target.value })
+                setFormData({ ...formData, product_id: e.target.value })
               }
             />
             <TextField
               label="Product Name"
-              value={formData.productName}
+              value={formData.product_name}
               onChange={(e) =>
-                setFormData({ ...formData, productName: e.target.value })
+                setFormData({ ...formData, product_name: e.target.value })
               }
             />
             <TextField
@@ -243,16 +249,16 @@ const Inventory = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <TextField
               label="Product ID"
-              value={formData.productId}
+              value={formData.product_id}
               onChange={(e) =>
-                setFormData({ ...formData, productId: e.target.value })
+                setFormData({ ...formData, product_id: e.target.value })
               }
             />
             <TextField
               label="Product Name"
-              value={formData.productName}
+              value={formData.product_name}
               onChange={(e) =>
-                setFormData({ ...formData, productName: e.target.value })
+                setFormData({ ...formData, product_name: e.target.value })
               }
             />
             <TextField
@@ -303,7 +309,7 @@ const Inventory = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
             <Typography>
               Are you sure you want to delete{' '}
-              <strong>{selectedItem?.productName}</strong>?
+              <strong>{selectedItem?.product_name}</strong>?
             </Typography>
             <Typography color="error" variant="body2">
               This action cannot be undone. Please enter your password to confirm.

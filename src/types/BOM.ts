@@ -2,7 +2,7 @@ import { InventoryItem } from './Inventory';
 
 export interface BOMItem {
   id: string;
-  inventoryItemId: string;
+  inventoryitemid: string;
   quantity: number;
 }
 
