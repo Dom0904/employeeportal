@@ -114,7 +114,7 @@ const navigationGroups = [
     icon: <BuildIcon />,
     items: [
       { text: 'Cost Estimation', icon: <AttachMoneyIcon />, path: '/cost-estimation', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER] },
-      { text: 'Bill of Materials', icon: <ReceiptIcon />, path: '/bill-of-materials-new', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] },
+      { text: 'Bill of Materials', icon: <ReceiptIcon />, path: '/bill-of-material', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] },
       { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] },
     ]
   },
@@ -233,8 +233,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-            <img src={logoSvg} alt="EdgeTech Logo" style={{ height: 40, marginRight: theme.spacing(2) }} />
+          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
+            <img src="/images/edgetech_logo.png" alt="Edgetech Logo" style={{ height: 40, marginRight: 16 }} />
             <Typography variant="h6" noWrap component="div">
               Employee Portal
             </Typography>

@@ -28,7 +28,11 @@ import { useInventory } from '../contexts/InventoryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { InventoryItem, InventoryStatus } from '../types/Inventory';
 
-interface InventoryFormData extends Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> {}
+interface InventoryFormData extends Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> {
+  unit?: string;
+  category?: string;
+  supplier?: string;
+}
 
 const getStatusColor = (status: InventoryStatus) => {
   switch (status) {
@@ -58,6 +62,9 @@ const Inventory = () => {
     description: '',
     unit_price: 0,
     quantity: 0,
+    unit: '',
+    category: '',
+    supplier: '',
     status: 'in-stock',
   });
   const [password, setPassword] = useState('');
@@ -72,6 +79,9 @@ const Inventory = () => {
         unit_price: formData.unit_price,
         quantity: formData.quantity,
         status: formData.status,
+        unit: formData.unit,
+        category: formData.category,
+        supplier: formData.supplier,
       };
       await addItem(newItem);
       setIsAddDialogOpen(false);
@@ -81,6 +91,9 @@ const Inventory = () => {
         description: '',
         unit_price: 0,
         quantity: 0,
+        unit: '',
+        category: '',
+        supplier: '',
         status: 'in-stock',
       });
     } catch (err) {
@@ -119,6 +132,9 @@ const Inventory = () => {
       description: item.description || '',
       unit_price: item.unit_price || 0,
       quantity: item.quantity,
+      unit: item.unit || '',
+      category: item.category || '',
+      supplier: item.supplier || '',
       status: item.status,
     });
     setIsEditDialogOpen(true);
@@ -148,6 +164,10 @@ const Inventory = () => {
             <TableRow>
               <TableCell>Product ID</TableCell>
               <TableCell>Product Name</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>Unit</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell>Supplier</TableCell>
               <TableCell align="right">Unit Price</TableCell>
               <TableCell align="right">Quantity</TableCell>
               <TableCell>Status</TableCell>
@@ -159,6 +179,10 @@ const Inventory = () => {
               <TableRow key={item.id}>
                 <TableCell>{item.product_id}</TableCell>
                 <TableCell>{item.product_name}</TableCell>
+                <TableCell>{item.description}</TableCell>
+                <TableCell>{item.unit}</TableCell>
+                <TableCell>{item.category}</TableCell>
+                <TableCell>{item.supplier}</TableCell>
                 <TableCell align="right">${item.unit_price ? item.unit_price.toFixed(2) : 'N/A'}</TableCell>
                 <TableCell align="right">{item.quantity}</TableCell>
                 <TableCell>
@@ -225,6 +249,9 @@ const Inventory = () => {
               onChange={(e) =>
                 setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })
               }
+              inputProps={{
+                step: "0.01",
+              }}
             />
             <TextField
               label="Quantity"
@@ -235,6 +262,52 @@ const Inventory = () => {
                   ...formData,
                   quantity: parseInt(e.target.value) || 0,
                 })
+              }
+            />
+            <TextField
+              select
+              label="Unit"
+              value={formData.unit}
+              onChange={(e) =>
+                setFormData({ ...formData, unit: e.target.value })
+              }
+              SelectProps={{ native: true }}
+            >
+              <option value=""></option>
+              <option value="pcs">Pcs</option>
+              <option value="M">M</option>
+              <option value="rolls">Rolls</option>
+              <option value="assembly">Assembly</option>
+              <option value="sacks">Sacks</option>
+              <option value="Kg">Kg</option>
+              <option value="pack">Pack</option>
+              <option value="crate">Crate</option>
+              <option value="lengths">Lengths</option>
+            </TextField>
+            <TextField
+              select
+              label="Category"
+              value={formData.category}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value })
+              }
+              SelectProps={{ native: true }}
+            >
+              <option value=""></option>
+              <option value="electrical">Electrical</option>
+              <option value="mechanical">Mechanical</option>
+              <option value="hvac">HVAC</option>
+              <option value="sanitary">Sanitary</option>
+              <option value="trading-goods">Trading Goods</option>
+              <option value="finished-goods">Finished Goods</option>
+              <option value="fabricated">Fabricated</option>
+              <option value="aux-electronics">AUX Electronics</option>
+            </TextField>
+            <TextField
+              label="Supplier"
+              value={formData.supplier}
+              onChange={(e) =>
+                setFormData({ ...formData, supplier: e.target.value })
               }
             />
             <TextField
@@ -299,6 +372,9 @@ const Inventory = () => {
               onChange={(e) =>
                 setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })
               }
+              inputProps={{
+                step: "0.01",
+              }}
             />
             <TextField
               label="Quantity"
@@ -309,6 +385,52 @@ const Inventory = () => {
                   ...formData,
                   quantity: parseInt(e.target.value) || 0,
                 })
+              }
+            />
+            <TextField
+              select
+              label="Unit"
+              value={formData.unit}
+              onChange={(e) =>
+                setFormData({ ...formData, unit: e.target.value })
+              }
+              SelectProps={{ native: true }}
+            >
+              <option value=""></option>
+              <option value="pcs">Pcs</option>
+              <option value="M">M</option>
+              <option value="rolls">Rolls</option>
+              <option value="assembly">Assembly</option>
+              <option value="sacks">Sacks</option>
+              <option value="Kg">Kg</option>
+              <option value="pack">Pack</option>
+              <option value="crate">Crate</option>
+              <option value="lengths">Lengths</option>
+            </TextField>
+            <TextField
+              select
+              label="Category"
+              value={formData.category}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value })
+              }
+              SelectProps={{ native: true }}
+            >
+              <option value=""></option>
+              <option value="electrical">Electrical</option>
+              <option value="mechanical">Mechanical</option>
+              <option value="hvac">HVAC</option>
+              <option value="sanitary">Sanitary</option>
+              <option value="trading-goods">Trading Goods</option>
+              <option value="finished-goods">Finished Goods</option>
+              <option value="fabricated">Fabricated</option>
+              <option value="aux-electronics">AUX Electronics</option>
+            </TextField>
+            <TextField
+              label="Supplier"
+              value={formData.supplier}
+              onChange={(e) =>
+                setFormData({ ...formData, supplier: e.target.value })
               }
             />
             <TextField

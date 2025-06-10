@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { BOM, BOMContextType, BOMItem } from '../types/BOM';
 import { useAuth } from './AuthContext';
 import { useInventory } from './InventoryContext';
 import { useNotifications } from './NotificationContext';
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { supabase } from '../supabaseClient';
 
@@ -33,7 +33,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
       // Get all BOM items
-      const { data: itemData, error: itemError } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity');
+      const { data: itemData, error: itemError } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description, author');
       if (itemError) {
         showNotification({ type: 'error', message: 'Failed to fetch BOM items' });
         return;
@@ -48,7 +48,12 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: item.id,
             bom_id: item.bom_id,
             inventoryitemid: item.inventoryitemid,
-            quantity: item.quantity
+            quantity: item.quantity,
+            unit: item.unit,
+            category: item.category,
+            supplier: item.supplier,
+            description: item.description,
+            author: item.author
         }))
       }));
       setBoms(bomsWithItems);
@@ -79,6 +84,8 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       title: bom.title,
       description: bom.description,
       project_id: bom.projectId,
+      category: bom.category,
+      author: bom.author,
       created_at: bom.createdAt,
       created_by: bom.createdBy,
       updated_at: bom.updatedAt,
@@ -95,7 +102,12 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: crypto.randomUUID(),
         bom_id: bomId,
         inventoryitemid: item.inventoryitemid,
-        quantity: item.quantity
+        quantity: item.quantity,
+        unit: item.unit,
+        category: item.category,
+        supplier: item.supplier,
+        description: item.description,
+        author: item.author
     }));
     const { error: itemError } = await supabase.from('bom_items').insert(itemsToInsert);
     if (itemError) {
@@ -141,20 +153,30 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: crypto.randomUUID(),
           bom_id: id,
           inventoryitemid: item.inventoryitemid,
-          quantity: item.quantity
+          quantity: item.quantity,
+          unit: item.unit,
+          category: item.category,
+          supplier: item.supplier,
+          description: item.description,
+          author: item.author
       }));
       await supabase.from('bom_items').insert(itemsToInsert);
     }
     // Refresh BOMs
     const { data: bomData } = await supabase.from('boms').select('*');
-    const { data: itemData } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity');
+    const { data: itemData } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description, author');
     const bomsWithItems = (bomData ?? []).map((bom: any) => ({
       ...bom,
       items: (itemData ?? []).filter((item: any) => item.bom_id === bom.id).map((item: any) => ({
           id: item.id,
           bom_id: item.bom_id,
           inventoryitemid: item.inventoryitemid,
-          quantity: item.quantity
+          quantity: item.quantity,
+          unit: item.unit,
+          category: item.category,
+          supplier: item.supplier,
+          description: item.description,
+          author: item.author
       }))
     }));
     setBoms(bomsWithItems);
@@ -189,44 +211,76 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const doc = new jsPDF();
+    console.log('jsPDF instance created. autoTable:', (doc as any).autoTable);
 
-    // Add title
-    doc.setFontSize(20);
-    doc.text('Bill of Materials', 14, 20);
-
-    // Add project info
-    doc.setFontSize(12);
-    doc.text(`Title: ${bom.title}`, 14, 30);
-    if (bom.description) {
-      doc.text(`Description: ${bom.description}`, 14, 40);
-    }
+    // Add title and project ID
+    doc.setFontSize(16);
+    doc.text(`Title: ${bom.title}`, 14, 20);
     if (bom.projectId) {
-      doc.text(`Project ID: ${bom.projectId}`, 14, 50);
+      doc.text(`Project ID: ${bom.projectId}`, 14, 30);
     }
 
     // Create table data
-    const tableData = bom.items.map(item => {
+    const tableData = bom.items.map((item, index) => {
       const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
       return [
-        inventoryItem?.product_id || '',
-        inventoryItem?.product_name || '',
-        item.quantity.toString(),
+        (index + 1).toString(), // Item No.
+        inventoryItem?.product_name || 'N/A', // Item
+        item.quantity.toString(), // Quantity
       ];
     });
 
     // Add table
     (doc as any).autoTable({
-      startY: 60,
-      head: [['Product ID', 'Product Name', 'Quantity']],
+      startY: bom.projectId ? 40 : 30, // Adjust startY based on whether Project ID is present
+      head: [['Item No.', 'Item', 'Quantity']],
       body: tableData,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
+      headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: 'bold' },
+      columnStyles: { // Apply styles to specific columns
+        0: { cellWidth: 20 }, // Item No.
+        1: { cellWidth: 'auto' }, // Item
+        2: { cellWidth: 20 }, // Quantity
+      }
     });
 
     // Save the PDF
-    doc.save(`BOM-${bom.title}-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`BOM-${bom.title.replace(/ /g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`);
 
     showNotification({
       type: 'success',
       message: 'BOM exported to PDF successfully'
+    });
+  }, [getBOMById, inventoryItems, showNotification]);
+
+  const exportBOMToCSV = useCallback(async (id: string) => {
+    const bom = getBOMById(id);
+    if (!bom) {
+      throw new Error('BOM not found');
+    }
+
+    let csvContent = 'Item No.,Item,Quantity\n'; // CSV Headers
+
+    bom.items.forEach((item, index) => {
+      const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
+      const itemNo = (index + 1).toString();
+      const itemName = inventoryItem?.product_name || 'N/A';
+      const quantity = item.quantity.toString();
+      csvContent += `"${itemNo}","${itemName}","${quantity}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `BOM-${bom.title.replace(/ /g, '_')}-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showNotification({
+      type: 'success',
+      message: 'BOM exported to CSV successfully'
     });
   }, [getBOMById, inventoryItems, showNotification]);
 
@@ -250,28 +304,31 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
     });
 
-    // You would then typically pass costEstimationItems to the Cost Estimation component
-    // For now, we'll just log it and show a notification.
-    console.log('Imported items for Cost Estimation:', costEstimationItems);
+    // Example: Navigate to cost estimation page with imported data
+    // navigate('/cost-estimation', { state: { importedBOM: bomToImport, importedItems: costEstimationItems } });
 
     showNotification({
-      type: 'success',
-      message: 'BOM imported to Cost Estimation successfully'
+      type: 'info',
+      message: 'BOM imported to Cost Estimation (feature needs full implementation)'
     });
   }, [getBOMById, inventoryItems, showNotification]);
 
-  const value = {
+  const contextValue = useMemo(
+    () => ({
     boms,
     addBOM,
     updateBOM,
     deleteBOM,
     getBOMById,
     exportBOMToPDF,
+      exportBOMToCSV,
     importBOMToCostEstimation,
-  };
+    }),
+    [boms, addBOM, updateBOM, deleteBOM, getBOMById, exportBOMToPDF, exportBOMToCSV, importBOMToCostEstimation]
+  );
 
   return (
-    <BOMContext.Provider value={value}>
+    <BOMContext.Provider value={contextValue}>
       {children}
     </BOMContext.Provider>
   );

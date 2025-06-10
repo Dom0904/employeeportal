@@ -16,6 +16,8 @@ export interface BOM {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
+  category?: string;
+  author?: string;
 }
 
 export interface BOMItemWithDetails extends BOMItem {
@@ -33,5 +35,6 @@ export interface BOMContextType {
   deleteBOM: (id: string) => Promise<void>;
   getBOMById: (id: string) => BOM | undefined;
   exportBOMToPDF: (id: string) => Promise<void>;
+  exportBOMToCSV: (id: string) => Promise<void>;
   importBOMToCostEstimation: (id: string) => Promise<void>;
 }

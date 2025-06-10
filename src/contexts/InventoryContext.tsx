@@ -86,16 +86,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         status: determineInventoryStatus(newItem.quantity),
         last_updated: new Date().toISOString(),
         updated_by: session.user.id, // Use the auth user ID instead of profile ID
-      };
+    };
 
-      // Insert into Supabase
+    // Insert into Supabase
       const { data, error } = await supabase
         .from('inventory')
         .insert([item])
         .select()
         .single();
 
-      if (error) {
+    if (error) {
         console.error('Supabase error:', error);
         showNotification({ 
           type: 'error', 
@@ -109,15 +109,15 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           type: 'error', 
           message: 'Failed to add item: No data returned from insert' 
         });
-        return;
-      }
+      return;
+    }
 
       // Update local state
       setItems(prev => [...prev, data]);
-      showNotification({
-        type: 'success',
+    showNotification({
+      type: 'success',
         message: `Added ${data.product_name} to inventory`
-      });
+    });
     } catch (err) {
       console.error('Error adding item:', err);
       showNotification({ 
@@ -158,16 +158,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
     if (data && data.length > 0) {
-      setItems(prev => prev.map(item => {
-        if (item.id === id) {
+    setItems(prev => prev.map(item => {
+      if (item.id === id) {
           return data[0];
-        }
-        return item;
-      }));
-      showNotification({
-        type: 'success',
+      }
+      return item;
+    }));
+    showNotification({
+      type: 'success',
         message: 'Updated inventory item'
-      });
+    });
     } else {
       showNotification({ type: 'error', message: 'Failed to update item: No data returned from update' });
     }
