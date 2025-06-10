@@ -43,6 +43,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const itemList = itemData || [];
       const bomsWithItems = bomList.map((bom: any) => ({
         ...bom,
+        projectId: bom.project_id,
         items: itemList.filter((item: any) => item.bom_id === bom.id).map((item: any) => ({
             id: item.id,
             bom_id: item.bom_id,
@@ -72,8 +73,19 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedBy: user.id,
       items: []
     };
+    // Prepare object for Supabase insert, mapping projectId to project_id
+    const bomToInsert = {
+      id: bom.id,
+      title: bom.title,
+      description: bom.description,
+      project_id: bom.projectId,
+      created_at: bom.createdAt,
+      created_by: bom.createdBy,
+      updated_at: bom.updatedAt,
+      updated_by: bom.updatedBy,
+    };
     // Insert BOM
-    const { error: bomError } = await supabase.from('boms').insert([{ ...bom, items: undefined }]);
+    const { error: bomError } = await supabase.from('boms').insert([bomToInsert]);
     if (bomError) {
       showNotification({ type: 'error', message: 'Failed to create BOM' });
       return;
@@ -105,11 +117,17 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('User must be logged in to update BOM');
     }
     // Update BOM
-    const { error: bomError } = await supabase.from('boms').update({
+    const updatesToApply: any = {
       ...updates,
-      updatedAt: new Date().toISOString(),
-      updatedBy: user.id,
-    }).eq('id', id);
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
+    };
+    // Map projectId to project_id if present in updates
+    if (updates.projectId !== undefined) {
+      updatesToApply.project_id = updates.projectId;
+      delete updatesToApply.projectId; // Remove camelCase version if present
+    }
+    const { error: bomError } = await supabase.from('boms').update(updatesToApply).eq('id', id);
     if (bomError) {
       showNotification({ type: 'error', message: 'Failed to update BOM' });
       return;
@@ -226,7 +244,6 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             itemId: item.inventoryitemid,
             name: inventoryItem?.product_name || 'Unknown Item',
             description: inventoryItem?.description || '',
-            unit: inventoryItem?.unit || '',
             unitPrice: inventoryItem?.unit_price || 0,
             quantity: item.quantity,
             total: (inventoryItem?.unit_price || 0) * item.quantity,

@@ -44,7 +44,6 @@ interface CostEstimationItem {
   itemId: string;
   name: string;
   description: string;
-  unit: string;
   unit_price: number;
   quantity: number;
   total: number;
@@ -115,10 +114,9 @@ const CostEstimation = () => {
       itemId: selectedItem.id,
       name: selectedItem.product_name,
       description: selectedItem.description,
-      unit: selectedItem.unit,
       unit_price: selectedItem.unit_price,
       quantity: itemQuantity,
-      total: selectedItem.unit_price * itemQuantity
+      total: selectedItem.unit_price * itemQuantity,
     };
     
     setEstimationItems(prev => [...prev, newItem]);
@@ -274,9 +272,6 @@ const CostEstimation = () => {
               onChange={(e) => setItemQuantity(Number(e.target.value))}
               InputProps={{
                 inputProps: { min: 1 },
-                endAdornment: selectedItem ? (
-                  <InputAdornment position="end">{selectedItem.unit}</InputAdornment>
-                ) : null
               }}
             />
           </Grid>
@@ -314,33 +309,24 @@ const CostEstimation = () => {
               <TableCell sx={{ color: 'white' }}>Description</TableCell>
               <TableCell sx={{ color: 'white' }} align="right">Unit Price</TableCell>
               <TableCell sx={{ color: 'white' }} align="right">Quantity</TableCell>
-              <TableCell sx={{ color: 'white' }} align="right">Unit</TableCell>
               <TableCell sx={{ color: 'white' }} align="right">Total</TableCell>
               <TableCell sx={{ color: 'white' }} align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {estimationItems.map((item) => (
-              <TableRow key={item.id} hover>
+              <TableRow key={item.id}>
                 <TableCell>{item.name}</TableCell>
                 <TableCell>{item.description}</TableCell>
                 <TableCell align="right">{formatCurrency(item.unit_price)}</TableCell>
-                <TableCell align="right">
-                  <TextField
-                    type="number"
-                    size="small"
-                    value={item.quantity}
-                    onChange={(e) => handleQuantityChange(item.id, Number(e.target.value))}
-                    InputProps={{
-                      inputProps: { min: 1, style: { textAlign: 'right' } },
-                    }}
-                    sx={{ width: 80 }}
-                  />
-                </TableCell>
-                <TableCell align="right">{item.unit}</TableCell>
+                <TableCell align="right">{item.quantity}</TableCell>
                 <TableCell align="right">{formatCurrency(item.total)}</TableCell>
                 <TableCell align="center">
-                  <IconButton color="error" onClick={() => handleRemoveItem(item.id)}>
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    onClick={() => handleRemoveItem(item.id)}
+                  >
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>

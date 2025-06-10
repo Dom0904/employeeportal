@@ -48,6 +48,8 @@ import {
 import { useAuth, UserRole } from '../contexts/AuthContext';
 import logoSvg from '../assets/edgetech-logo.png';
 
+console.log('Layout component loaded.'); // Added for debugging 404
+
 const drawerWidth = 240;
 
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
@@ -112,7 +114,7 @@ const navigationGroups = [
     icon: <BuildIcon />,
     items: [
       { text: 'Cost Estimation', icon: <AttachMoneyIcon />, path: '/cost-estimation', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER] },
-      { text: 'Bill of Materials', icon: <ReceiptIcon />, path: '/bill-of-materials', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] },
+      { text: 'Bill of Materials', icon: <ReceiptIcon />, path: '/bill-of-materials-new', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] },
       { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] },
     ]
   },
@@ -196,7 +198,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const handleNavigation = (path: string) => {
-    router.replace(path);
+    console.log('Navigating from:', router.pathname, 'to:', path);
+    if (router.pathname !== path) {
+      router.push(path, undefined, { shallow: true });
+    }
   };
 
   const handleGroupToggle = (groupName: string) => {

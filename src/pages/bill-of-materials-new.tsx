@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+
 import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Button, IconButton, MenuItem, Select, TextField, Stack } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, Download as DownloadIcon, PictureAsPdf as PdfIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon, Download as DownloadIcon, PictureAsPdf as PdfIcon, Save as SaveIcon } from '@mui/icons-material';
 import { useInventory } from '../contexts/InventoryContext';
 import { useAuth, UserRole } from '../contexts/AuthContext';
 import { useBOM } from '../contexts/BOMContext';
@@ -9,13 +10,14 @@ import { BOMItem } from '../types/BOM';
 const BillOfMaterial: React.FC = () => {
   const { items: inventoryItems } = useInventory();
   const { user } = useAuth();
-  const { /* exportBOMToPDF */ } = useBOM();
+  const { addBOM, exportBOMToPDF } = useBOM();
   const isAdminOrManager = user && (user.role === UserRole.ADMIN || user.role === UserRole.MANAGER);
 
-  // BOM state for this session (not persistent)
+  // BOM state for this session
   const [bomRows, setBomRows] = useState<BOMItem[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [projectId, setProjectId] = useState('');
 
   // Add a new empty row
   const handleAddRow = () => {
@@ -30,6 +32,34 @@ const BillOfMaterial: React.FC = () => {
   // Update a row
   const handleRowChange = (id: string, field: keyof BOMItem, value: any) => {
     setBomRows(bomRows.map(row => row.id === id ? { ...row, [field]: value } : row));
+  };
+
+  // Save BOM
+  const handleSave = async () => {
+    if (!title) {
+      alert('Please enter a title for the BOM');
+      return;
+    }
+    if (bomRows.length === 0) {
+      alert('Please add at least one item to the BOM');
+      return;
+    }
+    try {
+      await addBOM({
+        title,
+        description,
+        projectId,
+        items: bomRows
+      });
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setProjectId('');
+      setBomRows([]);
+    } catch (error) {
+      console.error('Failed to save BOM:', error);
+      alert('Failed to save BOM. Please try again.');
+    }
   };
 
   // Export to CSV
@@ -59,8 +89,25 @@ const BillOfMaterial: React.FC = () => {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h5" gutterBottom>Bill of Materials</Typography>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <TextField label="Title" value={title} onChange={e => setTitle(e.target.value)} sx={{ flex: 1 }} />
-          <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} sx={{ flex: 2 }} />
+          <TextField 
+            label="Title" 
+            value={title} 
+            onChange={e => setTitle(e.target.value)} 
+            sx={{ flex: 1 }} 
+            required
+          />
+          <TextField 
+            label="Description" 
+            value={description} 
+            onChange={e => setDescription(e.target.value)} 
+            sx={{ flex: 2 }} 
+          />
+          <TextField 
+            label="Project ID" 
+            value={projectId} 
+            onChange={e => setProjectId(e.target.value)} 
+            sx={{ flex: 1 }} 
+          />
         </Stack>
         <Table size="small">
           <TableHead>
@@ -115,12 +162,26 @@ const BillOfMaterial: React.FC = () => {
           </TableBody>
         </Table>
         <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-          <Button variant="contained" color="primary" startIcon={<PdfIcon />} onClick={() => {/* Implement export to PDF via context if needed */}}>Export to PDF</Button>
-          <Button variant="contained" color="secondary" startIcon={<DownloadIcon />} onClick={handleExportCSV}>Export to CSV</Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<SaveIcon />} 
+            onClick={handleSave}
+          >
+            Save BOM
+          </Button>
+          <Button 
+            variant="contained" 
+            color="secondary" 
+            startIcon={<DownloadIcon />} 
+            onClick={handleExportCSV}
+          >
+            Export to CSV
+          </Button>
         </Stack>
       </Paper>
     </Box>
   );
 };
 
-export default BillOfMaterial;
+export default BillOfMaterial; 

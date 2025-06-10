@@ -5,7 +5,6 @@ export interface InventoryItem {
   product_id: string;
   product_name: string;
   description: string;
-  unit: string;
   unit_price: number;
   quantity: number;
   status: InventoryStatus;

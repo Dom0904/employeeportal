@@ -56,7 +56,6 @@ const Inventory = () => {
     product_id: '',
     product_name: '',
     description: '',
-    unit: '',
     unit_price: 0,
     quantity: 0,
     status: 'in-stock',
@@ -70,7 +69,6 @@ const Inventory = () => {
         product_id: formData.product_id,
         product_name: formData.product_name,
         description: formData.description,
-        unit: formData.unit,
         unit_price: formData.unit_price,
         quantity: formData.quantity,
         status: formData.status,
@@ -81,7 +79,6 @@ const Inventory = () => {
         product_id: '',
         product_name: '',
         description: '',
-        unit: '',
         unit_price: 0,
         quantity: 0,
         status: 'in-stock',
@@ -120,7 +117,6 @@ const Inventory = () => {
       product_id: item.product_id,
       product_name: item.product_name,
       description: item.description || '',
-      unit: item.unit || '',
       unit_price: item.unit_price || 0,
       quantity: item.quantity,
       status: item.status,
@@ -152,6 +148,7 @@ const Inventory = () => {
             <TableRow>
               <TableCell>Product ID</TableCell>
               <TableCell>Product Name</TableCell>
+              <TableCell align="right">Unit Price</TableCell>
               <TableCell align="right">Quantity</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
@@ -162,6 +159,7 @@ const Inventory = () => {
               <TableRow key={item.id}>
                 <TableCell>{item.product_id}</TableCell>
                 <TableCell>{item.product_name}</TableCell>
+                <TableCell align="right">${item.unit_price ? item.unit_price.toFixed(2) : 'N/A'}</TableCell>
                 <TableCell align="right">{item.quantity}</TableCell>
                 <TableCell>
                   <Chip
@@ -219,13 +217,6 @@ const Inventory = () => {
               }
               multiline
               rows={3}
-            />
-            <TextField
-              label="Unit"
-              value={formData.unit}
-              onChange={(e) =>
-                setFormData({ ...formData, unit: e.target.value })
-              }
             />
             <TextField
               label="Unit Price"
@@ -300,13 +291,6 @@ const Inventory = () => {
               }
               multiline
               rows={3}
-            />
-            <TextField
-              label="Unit"
-              value={formData.unit}
-              onChange={(e) =>
-                setFormData({ ...formData, unit: e.target.value })
-              }
             />
             <TextField
               label="Unit Price"

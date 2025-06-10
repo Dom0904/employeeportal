@@ -33,18 +33,19 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Fetch inventory from Supabase on mount
   useEffect(() => {
     const fetchItems = async () => {
-      const { data, error } = await supabase.from('inventory').select('id, product_id, product_name, description, unit, unit_price, quantity, status, last_updated, updated_by');
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*');  // Select all columns to avoid any naming mismatches
       if (error) {
         showNotification({ type: 'error', message: 'Failed to fetch inventory' });
       } else if (data) {
-        // Explicitly map data to InventoryItem to ensure unit_price is correctly assigned
+        // Explicitly map data to InventoryItem to ensure correct field mapping
         const mappedData: InventoryItem[] = data.map((item: any) => ({
           id: item.id,
           product_id: item.product_id,
           product_name: item.product_name,
           description: item.description,
-          unit: item.unit,
-          unit_price: item.unit_price || item.unitPrice, // Handle both potential casings during fetch
+          unit_price: item.unit_price,
           quantity: item.quantity,
           status: item.status,
           last_updated: item.last_updated,
@@ -61,36 +62,68 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addItem = useCallback(async (
     newItem: Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'>
   ) => {
-    if (!user) {
-      throw new Error('User must be logged in to add inventory items');
-    }
-
-    const item = {
-      product_id: newItem.product_id,
-      product_name: newItem.product_name,
-      description: newItem.description,
-      unit: newItem.unit,
-      unit_price: newItem.unit_price,
-      quantity: newItem.quantity,
-      status: determineInventoryStatus(newItem.quantity),
-      last_updated: new Date().toISOString(),
-      updated_by: user.id,
-    };
-
-    // Insert into Supabase
-    const { data, error } = await supabase.from('inventory').insert([item]).select();
-    if (error) {
-      showNotification({ type: 'error', message: `Failed to add item: ${error.message}` });
+    if (!user || !user.id) {
+      showNotification({ type: 'error', message: 'You must be logged in to add inventory items' });
       return;
     }
-    if (data && data.length > 0) {
-      setItems(prev => [...prev, data[0]]);
+
+    try {
+      // Get the current session to get the auth user ID
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user?.id) {
+        console.error('Session error:', sessionError);
+        showNotification({ type: 'error', message: 'Authentication error. Please try logging in again.' });
+        return;
+      }
+
+      const item = {
+        product_id: newItem.product_id,
+        product_name: newItem.product_name,
+        description: newItem.description,
+        unit_price: newItem.unit_price,
+        quantity: newItem.quantity,
+        status: determineInventoryStatus(newItem.quantity),
+        last_updated: new Date().toISOString(),
+        updated_by: session.user.id, // Use the auth user ID instead of profile ID
+      };
+
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('inventory')
+        .insert([item])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        showNotification({ 
+          type: 'error', 
+          message: `Failed to add item: ${error.message || 'Unknown error'}` 
+        });
+        return;
+      }
+
+      if (!data) {
+        showNotification({ 
+          type: 'error', 
+          message: 'Failed to add item: No data returned from insert' 
+        });
+        return;
+      }
+
+      // Update local state
+      setItems(prev => [...prev, data]);
       showNotification({
         type: 'success',
-        message: `Added ${data[0].product_name} to inventory`
+        message: `Added ${data.product_name} to inventory`
       });
-    } else {
-      showNotification({ type: 'error', message: 'Failed to add item: No data returned from insert' });
+    } catch (err) {
+      console.error('Error adding item:', err);
+      showNotification({ 
+        type: 'error', 
+        message: `Failed to add item: ${err instanceof Error ? err.message : 'Unknown error'}` 
+      });
     }
   }, [user, showNotification]);
 
