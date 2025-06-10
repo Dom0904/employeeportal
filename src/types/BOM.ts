@@ -4,6 +4,12 @@ export interface BOMItem {
   id: string;
   inventoryitemid: string;
   quantity: number;
+  unit?: string;
+  category?: string;
+  supplier?: string;
+  description?: string;
+  author?: string;
+  bom_id?: string;
 }
 
 export interface BOM {
