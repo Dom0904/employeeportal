@@ -1,0 +1,24 @@
+<svg width="500" height="120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circle with 'e' -->
+  <circle cx="125" cy="60" r="45" fill="#A4FF00" stroke="#5E2E8E" stroke-width="6" />
+  <text x="108" y="83" font-family="Arial" font-size="65" font-weight="bold" fill="#5E2E8E">e</text>
+  
+  <!-- Text "edgetech" -->
+  <g transform="translate(180, 32)">
+    <text font-family="Arial" font-size="50" font-weight="bold" fill="#5E2E8E">
+      <tspan>e</tspan>
+      <tspan x="30" y="0">d</tspan>
+      <tspan x="60" y="0">g</tspan>
+      <tspan x="90" y="0">e</tspan>
+    </text>
+    <text x="120" y="0" font-family="Arial" font-size="50" font-weight="bold" fill="#A4FF00">
+      <tspan>t</tspan>
+      <tspan x="140" y="0">e</tspan>
+      <tspan x="170" y="0">c</tspan>
+      <tspan x="200" y="0">h</tspan>
+    </text>
+  </g>
+  
+  <!-- Subtitle -->
+  <text x="180" y="90" font-family="Arial" font-size="18" font-weight="bold" fill="#5E2E8E">INDUSTRIAL SOLUTIONS TECHNIK, INC.</text>
+</svg> 
