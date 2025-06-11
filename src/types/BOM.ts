@@ -15,10 +15,11 @@ export interface BOMItem {
   bom_id: string;
   inventoryitemid: string;
   quantity: number;
-  unit: string;
-  category: string;
-  supplier: string;
-  description: string;
+  unit?: string | null;
+  category?: string | null;
+  supplier?: string | null;
+  description?: string | null;
+  inventoryDetails?: InventoryItem | null;
 }
 
 export interface BOM {
@@ -52,4 +53,5 @@ export interface BOMContextType {
   exportBOMToPDF: (id: string) => Promise<void>;
   exportBOMToCSV: (id: string) => Promise<void>;
   importBOMToCostEstimation: (id: string) => Promise<{ importedBOM: BOM; importedItems: CostEstimationItem[] } | null>;
+  fetchBOMs: () => Promise<void>;
 }

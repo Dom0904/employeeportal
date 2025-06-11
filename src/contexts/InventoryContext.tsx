@@ -42,14 +42,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Explicitly map data to InventoryItem to ensure correct field mapping
         const mappedData: InventoryItem[] = data.map((item: any) => ({
           id: item.id,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          description: item.description,
+          product_id: item.product_id || '',
+          product_name: item.product_name || '',
+          description: item.description || '',
           unit_price: item.unit_price,
           quantity: item.quantity,
-          unit: item.unit,
-          category: item.category,
-          supplier: item.supplier,
+          unit: item.unit || null,
+          category: item.category || null,
+          supplier: item.supplier || null,
           status: item.status,
           last_updated: item.last_updated,
           updated_by: item.updated_by,
@@ -86,22 +86,22 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         description: newItem.description,
         unit_price: newItem.unit_price,
         quantity: newItem.quantity,
-        unit: newItem.unit || null, // Add unit, default to null if not provided
-        category: newItem.category || null, // Add category, default to null if not provided
-        supplier: newItem.supplier || null, // Add supplier, default to null if not provided
+        unit: newItem.unit || null,
+        category: newItem.category || null,
+        supplier: newItem.supplier || null,
         status: determineInventoryStatus(newItem.quantity),
         last_updated: new Date().toISOString(),
-        updated_by: session.user.id, // Use the auth user ID instead of profile ID
-    };
+        updated_by: session.user.id,
+      };
 
-    // Insert into Supabase
+      // Insert into Supabase
       const { data, error } = await supabase
         .from('inventory')
         .insert([item])
-        .select()
+        .select('*, unit, category, supplier')
         .single();
 
-    if (error) {
+      if (error) {
         console.error('Supabase error:', error);
         showNotification({ 
           type: 'error', 
@@ -115,15 +115,23 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           type: 'error', 
           message: 'Failed to add item: No data returned from insert' 
         });
-      return;
-    }
+        return;
+      }
+
+      // Map the inserted data to ensure all fields are properly set
+      const insertedItem: InventoryItem = {
+        ...data,
+        unit: data.unit || null,
+        category: data.category || null,
+        supplier: data.supplier || null,
+      };
 
       // Update local state
-      setItems(prev => [...prev, data]);
-    showNotification({
-      type: 'success',
+      setItems(prev => [...prev, insertedItem]);
+      showNotification({
+        type: 'success',
         message: `Added ${data.product_name} to inventory`
-    });
+      });
     } catch (err) {
       console.error('Error adding item:', err);
       showNotification({ 
@@ -154,37 +162,46 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // Handle optional fields for updates
     if (updates.unit !== undefined) {
-        updatesToApply.unit = updates.unit;
+      updatesToApply.unit = updates.unit || null;
     }
     if (updates.category !== undefined) {
-        updatesToApply.category = updates.category;
+      updatesToApply.category = updates.category || null;
     }
     if (updates.supplier !== undefined) {
-        updatesToApply.supplier = updates.supplier;
-    }
-
-    // Map unit_price if present in updates (no longer need to map from unitPrice)
-    if (updates.unit_price !== undefined) { // Changed from updates.unitPrice
-      updatesToApply.unit_price = updates.unit_price; // Changed from updates.unitPrice
+      updatesToApply.supplier = updates.supplier || null;
     }
 
     // Update in Supabase
-    const { data, error } = await supabase.from('inventory').update(updatesToApply).eq('id', id).select();
+    const { data, error } = await supabase
+      .from('inventory')
+      .update(updatesToApply)
+      .eq('id', id)
+      .select('*, unit, category, supplier');
+
     if (error) {
       showNotification({ type: 'error', message: `Failed to update item: ${error.message}` });
       return;
     }
+
     if (data && data.length > 0) {
-    setItems(prev => prev.map(item => {
-      if (item.id === id) {
-          return data[0];
-      }
-      return item;
-    }));
-    showNotification({
-      type: 'success',
+      // Map the updated data to ensure all fields are properly set
+      const updatedItem: InventoryItem = {
+        ...data[0],
+        unit: data[0].unit || null,
+        category: data[0].category || null,
+        supplier: data[0].supplier || null,
+      };
+
+      setItems(prev => prev.map(item => {
+        if (item.id === id) {
+          return updatedItem;
+        }
+        return item;
+      }));
+      showNotification({
+        type: 'success',
         message: 'Updated inventory item'
-    });
+      });
     } else {
       showNotification({ type: 'error', message: 'Failed to update item: No data returned from update' });
     }

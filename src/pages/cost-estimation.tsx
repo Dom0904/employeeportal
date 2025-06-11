@@ -37,6 +37,7 @@ import {
 } from '@mui/icons-material';
 import { useInventory } from '../contexts/InventoryContext';
 import { InventoryItem } from '../types/Inventory';
+import { useRouter } from 'next/router';
 
 // Cost estimation item interface
 interface CostEstimationItem {
@@ -47,6 +48,9 @@ interface CostEstimationItem {
   unit_price: number;
   quantity: number;
   total: number;
+  unit?: string | null;
+  category?: string | null;
+  supplier?: string | null;
 }
 
 // Cost estimation template interface
@@ -73,6 +77,7 @@ const CostEstimation = () => {
   // ]);
 
   const { items: inventoryItems } = useInventory();
+  const router = useRouter();
 
   // Cost estimation state
   const [estimationItems, setEstimationItems] = useState<CostEstimationItem[]>([]);
@@ -98,6 +103,42 @@ const CostEstimation = () => {
     setTotalCost(newTotal);
   }, [estimationItems]);
 
+  // Handle BOM import from query parameters
+  useEffect(() => {
+    if (router.query.importedBOM && router.query.importedItems) {
+      try {
+        const importedBOM = JSON.parse(router.query.importedBOM as string);
+        const importedItems = JSON.parse(router.query.importedItems as string);
+
+        const mappedItems: CostEstimationItem[] = importedItems.map((item: any) => ({
+          id: item.id,
+          itemId: item.itemId,
+          name: item.name,
+          description: item.description,
+          unit_price: item.unit_price,
+          quantity: item.quantity,
+          total: item.total,
+          unit: item.unit, // Map unit
+          category: item.category, // Map category
+          supplier: item.supplier, // Map supplier
+        }));
+        setEstimationItems(mappedItems);
+        setSnackbarMessage(`BOM '${importedBOM.title}' loaded successfully.`);
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+
+        // Clear query parameters after use
+        router.replace('/cost-estimation', undefined, { shallow: true });
+
+      } catch (error) {
+        console.error('Error parsing imported BOM data:', error);
+        setSnackbarMessage('Failed to load imported BOM data.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    }
+  }, [router.query]); // Depend on router.query to re-run when params change
+
   // Add item to estimation
   const handleAddItem = () => {
     if (!selectedItem) return;
@@ -117,6 +158,9 @@ const CostEstimation = () => {
       unit_price: selectedItem.unit_price,
       quantity: itemQuantity,
       total: selectedItem.unit_price * itemQuantity,
+      unit: selectedItem.unit,
+      category: selectedItem.category,
+      supplier: selectedItem.supplier,
     };
     
     setEstimationItems(prev => [...prev, newItem]);
@@ -227,9 +271,10 @@ const CostEstimation = () => {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-PH', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'PHP',
+      minimumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -302,15 +347,18 @@ const CostEstimation = () => {
       
       {/* Estimation Table */}
       <TableContainer component={Paper} sx={{ mb: 3 }}>
-        <Table>
+        <Table size="small">
           <TableHead>
-            <TableRow sx={{ backgroundColor: 'primary.main' }}>
-              <TableCell sx={{ color: 'white' }}>Item</TableCell>
-              <TableCell sx={{ color: 'white' }}>Description</TableCell>
-              <TableCell sx={{ color: 'white' }} align="right">Unit Price</TableCell>
-              <TableCell sx={{ color: 'white' }} align="right">Quantity</TableCell>
-              <TableCell sx={{ color: 'white' }} align="right">Total</TableCell>
-              <TableCell sx={{ color: 'white' }} align="center">Actions</TableCell>
+            <TableRow>
+              <TableCell>Item</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>Unit</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell>Supplier</TableCell>
+              <TableCell>Unit Price</TableCell>
+              <TableCell>Quantity</TableCell>
+              <TableCell>Total</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -318,10 +366,13 @@ const CostEstimation = () => {
               <TableRow key={item.id}>
                 <TableCell>{item.name}</TableCell>
                 <TableCell>{item.description}</TableCell>
-                <TableCell align="right">{formatCurrency(item.unit_price)}</TableCell>
-                <TableCell align="right">{item.quantity}</TableCell>
-                <TableCell align="right">{formatCurrency(item.total)}</TableCell>
-                <TableCell align="center">
+                <TableCell>{item.unit || 'N/A'}</TableCell>
+                <TableCell>{item.category || 'N/A'}</TableCell>
+                <TableCell>{item.supplier || 'N/A'}</TableCell>
+                <TableCell>{formatCurrency(item.unit_price)}</TableCell>
+                <TableCell>{item.quantity}</TableCell>
+                <TableCell>{formatCurrency(item.total)}</TableCell>
+                <TableCell>
                   <IconButton
                     edge="end"
                     aria-label="delete"

@@ -7,9 +7,9 @@ export interface InventoryItem {
   description: string;
   unit_price: number;
   quantity: number;
-  unit?: string;
-  category?: string;
-  supplier?: string;
+  unit?: string | null;
+  category?: string | null;
+  supplier?: string | null;
   status: InventoryStatus;
   last_updated: string;
   updated_by: string;

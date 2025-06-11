@@ -8,6 +8,13 @@ import 'jspdf-autotable';
 import { supabase } from '../supabaseClient';
 import { generateUUID } from '../utils/uuid';
 
+// Initialize autoTable plugin
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
+
 const BOMContext = createContext<BOMContextType | undefined>(undefined);
 
 export const useBOM = () => {
@@ -24,45 +31,51 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const { items: inventoryItems } = useInventory();
   const { showNotification } = useNotifications();
 
-  // Fetch BOMs and items from Supabase on mount
-  useEffect(() => {
-    const fetchBOMs = async () => {
-      // Get all BOMs
-      const { data: bomData, error: bomError } = await supabase.from('boms').select('*');
-      if (bomError) {
-        showNotification({ type: 'error', message: 'Failed to fetch BOMs' });
-        return;
-      }
-      // Get all BOM items
-      const { data: itemData, error: itemError } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description');
-      if (itemError) {
-        showNotification({ type: 'error', message: 'Failed to fetch BOM items' });
-        return;
-      }
-      // Merge items into BOMs
-      const bomList = bomData || [];
-      const itemList = itemData || [];
-      const bomsWithItems = bomList.map((bom: any) => ({
-        ...bom,
-        projectId: bom.project_id,
-        items: itemList.filter((item: any) => item.bom_id === bom.id).map((item: any) => {
-            const inventoryItem = inventoryItems.find(invItem => invItem.id === item.inventoryitemid);
-            return {
-                id: item.id,
-                bom_id: item.bom_id,
-                inventoryitemid: item.inventoryitemid,
-                quantity: item.quantity,
-                unit: inventoryItem?.unit || item.unit, // Prefer inventory item's unit, fallback to bom_item's if available
-                category: inventoryItem?.category || item.category, // Prefer inventory item's category, fallback to bom_item's if available
-                supplier: inventoryItem?.supplier || item.supplier, // Prefer inventory item's supplier, fallback to bom_item's if available
-                description: inventoryItem?.description || item.description, // Prefer inventory item's description, fallback to bom_item's if available
-            }
-        })
-      }));
-      setBoms(bomsWithItems);
-    };
-    fetchBOMs();
+  // Extracted fetchBOMs into a useCallback hook
+  const fetchBOMs = useCallback(async () => {
+    // Get all BOMs
+    const { data: bomData, error: bomError } = await supabase.from('boms').select('*');
+    if (bomError) {
+      showNotification({ type: 'error', message: 'Failed to fetch BOMs' });
+      return;
+    }
+    // Get all BOM items
+    const { data: itemData, error: itemError } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description');
+    if (itemError) {
+      showNotification({ type: 'error', message: 'Failed to fetch BOM items' });
+      return;
+    }
+    // Merge items into BOMs
+    const bomList = bomData || [];
+    const itemList = itemData || [];
+    const bomsWithItems = bomList.map((bom: any) => ({
+      ...bom,
+      projectId: bom.project_id,
+      items: itemList.filter((item: any) => item.bom_id === bom.id).map((item: any) => {
+          const inventoryItem = inventoryItems.find(invItem => invItem.id === item.inventoryitemid);
+          return {
+              id: item.id,
+              bom_id: item.bom_id,
+              inventoryitemid: item.inventoryitemid,
+              quantity: item.quantity,
+              unit: inventoryItem?.unit ?? item.unit ?? null,
+              category: inventoryItem?.category ?? item.category ?? null,
+              supplier: inventoryItem?.supplier ?? item.supplier ?? null,
+              description: inventoryItem?.description ?? item.description ?? null,
+              inventoryDetails: inventoryItem || null,
+          }
+      })
+    }));
+    console.log('Fetched BOMs with items and inventory details:', bomsWithItems);
+    setBoms(bomsWithItems);
   }, [showNotification, inventoryItems]);
+
+  // Fetch BOMs when the component mounts or inventoryItems change
+  useEffect(() => {
+    if (inventoryItems.length > 0) { // Only fetch BOMs if inventoryItems are loaded
+      fetchBOMs();
+    }
+  }, [fetchBOMs, inventoryItems]); // Add inventoryItems to dependency array
 
   const addBOM = useCallback(async (
     newBom: Omit<BOM, 'id' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'> & { items: BOMItem[] }
@@ -71,123 +84,149 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('User must be logged in to create BOM');
     }
 
-    const bomId = generateUUID();
-    const bom: BOM = {
-      ...newBom,
-      id: bomId,
-      createdAt: new Date().toISOString(),
-      createdBy: user.id,
-      updatedAt: new Date().toISOString(),
-      updatedBy: user.id,
-      items: []
-    };
-    // Prepare object for Supabase insert, mapping projectId to project_id
-    const bomToInsert = {
-      id: bom.id,
-      title: bom.title,
-      description: bom.description,
-      project_id: bom.projectId,
-      category: bom.category,
-      author: bom.author,
-      created_at: bom.createdAt,
-      created_by: bom.createdBy,
-      updated_at: bom.updatedAt,
-      updated_by: bom.updatedBy,
-    };
-    // Insert BOM
-    const { error: bomError } = await supabase.from('boms').insert([bomToInsert]);
-    if (bomError) {
-      showNotification({ type: 'error', message: 'Failed to create BOM' });
-      return;
+    try {
+      const bomId = generateUUID();
+      const bom: BOM = {
+        ...newBom,
+        id: bomId,
+        createdAt: new Date().toISOString(),
+        createdBy: user.id,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.id,
+        items: []
+      };
+      // Prepare object for Supabase insert, mapping projectId to project_id
+      const bomToInsert = {
+        id: bom.id,
+        title: bom.title,
+        description: bom.description,
+        project_id: bom.projectId,
+        category: bom.category,
+        author: bom.author,
+        created_at: bom.createdAt,
+        created_by: bom.createdBy,
+        updated_at: bom.updatedAt,
+        updated_by: bom.updatedBy,
+      };
+      // Insert BOM
+      const { data, error } = await supabase.from('boms').insert([bomToInsert]).select();
+      console.log('Supabase insert BOM response:', data, error);
+      if (error) {
+        console.error('Supabase error creating BOM:', error);
+        showNotification({ type: 'error', message: 'Failed to create BOM' });
+        return;
+      }
+      if (data && data.length > 0) {
+        const insertedBom = data[0];
+        // Insert BOM items
+        const itemsToInsert = newBom.items.map(item => ({
+            id: generateUUID(),
+            bom_id: insertedBom.id,
+            inventoryitemid: item.inventoryitemid,
+            quantity: item.quantity,
+            unit: item.unit,
+            category: item.category,
+            supplier: item.supplier,
+            description: item.description,
+        }));
+        const { error: itemError } = await supabase.from('bom_items').insert(itemsToInsert);
+        console.log('Supabase insert BOM items response:', itemError);
+        if (itemError) {
+          console.error('Supabase error creating BOM items:', itemError);
+          await supabase.from('boms').delete().eq('id', insertedBom.id);
+          showNotification({ type: 'error', message: 'Failed to create BOM items' });
+          return;
+        }
+        setBoms(prev => [...prev, { ...bom, items: itemsToInsert }]);
+        showNotification({
+          type: 'success',
+          message: 'Bill of Materials created successfully'
+        });
+      }
+    } catch (err: any) {
+      console.error('Unhandled error in addBOM:', err);
+      showNotification({ type: 'error', message: `Failed to create BOM: ${err.message}` });
     }
-    // Insert BOM items
-    const itemsToInsert = newBom.items.map(item => ({
-        id: generateUUID(),
-        bom_id: bomId,
-        inventoryitemid: item.inventoryitemid,
-        quantity: item.quantity,
-        unit: item.unit,
-        category: item.category,
-        supplier: item.supplier,
-        description: item.description,
-    }));
-    const { error: itemError } = await supabase.from('bom_items').insert(itemsToInsert);
-    if (itemError) {
-      showNotification({ type: 'error', message: 'Failed to create BOM items' });
-      return;
-    }
-    setBoms(prev => [...prev, { ...bom, items: itemsToInsert }]);
-    showNotification({
-      type: 'success',
-      message: 'Bill of Materials created successfully'
-    });
   }, [user, showNotification]);
 
   const updateBOM = useCallback(async (
     id: string,
     updates: Partial<BOM> & { items?: BOMItem[] }
   ) => {
+    console.log('updateBOM received updates:', updates);
     if (!user) {
       throw new Error('User must be logged in to update BOM');
     }
-    // Update BOM
-    const updatesToApply: any = {
-      ...updates,
-      updated_at: new Date().toISOString(),
-      updated_by: user.id,
-    };
-    // Map projectId to project_id if present in updates
-    if (updates.projectId !== undefined) {
-      updatesToApply.project_id = updates.projectId;
-      delete updatesToApply.projectId; // Remove camelCase version if present
+
+    try {
+      const { items: itemsToUpdate, ...bomUpdates } = updates; // Separate items from BOM updates
+
+      const updatesToApply: any = {
+        ...bomUpdates,
+        updated_at: new Date().toISOString(),
+        updated_by: user.id,
+      };
+      // Map projectId to project_id if present in updates
+      if (updatesToApply.projectId !== undefined) {
+        updatesToApply.project_id = updatesToApply.projectId;
+        delete updatesToApply.projectId; // Remove camelCase version if present
+      }
+      console.log('updatesToApply before Supabase update:', updatesToApply);
+      console.log('Attempting to update BOM with ID:', id);
+      const { data: bomUpdateData, error: bomError } = await supabase.from('boms').update(updatesToApply).eq('id', id).select();
+      console.log('Supabase update BOM response:', bomUpdateData, bomError);
+      if (bomError) {
+        console.error('Supabase error updating BOM:', bomError);
+        showNotification({ type: 'error', message: 'Failed to update BOM' });
+        return;
+      }
+
+      if (!bomUpdateData || bomUpdateData.length === 0) {
+        console.warn('Supabase update BOM: No BOM found with ID', id, 'or update failed silently.');
+        showNotification({ type: 'error', message: 'Failed to update BOM (not found or silent failure)' });
+        return;
+      }
+
+      // Update BOM items
+      if (itemsToUpdate) {
+        // Delete existing items
+        const { error: deleteError } = await supabase.from('bom_items').delete().eq('bom_id', id);
+        console.log('Supabase delete BOM items response:', deleteError);
+        if (deleteError) {
+          console.error('Supabase error deleting BOM items during update:', deleteError);
+          showNotification({ type: 'error', message: 'Failed to update BOM items' });
+          return;
+        }
+        // Insert new items
+        const itemsToInsert = itemsToUpdate.map(item => ({
+            id: generateUUID(),
+            bom_id: id,
+            inventoryitemid: item.inventoryitemid,
+            quantity: item.quantity,
+            unit: item.unit,
+            category: item.category,
+            supplier: item.supplier,
+            description: item.description,
+        }));
+        const { error: insertError } = await supabase.from('bom_items').insert(itemsToInsert);
+        console.log('Supabase insert BOM items during update response:', insertError);
+        if (insertError) {
+          console.error('Supabase error inserting BOM items during update:', insertError);
+          showNotification({ type: 'error', message: 'Failed to update BOM items' });
+          return;
+        }
+      }
+      // Refresh BOMs
+      await fetchBOMs();
+      showNotification({
+        type: 'success',
+        message: 'Bill of Materials updated successfully'
+      });
+    } catch (err: any) {
+      console.error('Unhandled error in updateBOM:', err);
+      showNotification({ type: 'error', message: `Failed to update BOM: ${err.message}` });
     }
-    const { error: bomError } = await supabase.from('boms').update(updatesToApply).eq('id', id);
-    if (bomError) {
-      showNotification({ type: 'error', message: 'Failed to update BOM' });
-      return;
-    }
-    // Update BOM items
-    if (updates.items) {
-      // Delete existing items
-      await supabase.from('bom_items').delete().eq('bom_id', id);
-      // Insert new items
-      const itemsToInsert = updates.items.map(item => ({
-          id: generateUUID(),
-          bom_id: id,
-          inventoryitemid: item.inventoryitemid,
-          quantity: item.quantity,
-          unit: item.unit,
-          category: item.category,
-          supplier: item.supplier,
-          description: item.description,
-      }));
-      await supabase.from('bom_items').insert(itemsToInsert);
-    }
-    // Refresh BOMs
-    const { data: bomData } = await supabase.from('boms').select('*');
-    const { data: itemData } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description');
-    const bomsWithItems = (bomData ?? []).map((bom: any) => ({
-      ...bom,
-      items: (itemData ?? []).filter((item: any) => item.bom_id === bom.id).map((item: any) => {
-          const inventoryItem = inventoryItems.find(invItem => invItem.id === item.inventoryitemid);
-          return {
-              id: item.id,
-              bom_id: item.bom_id,
-              inventoryitemid: item.inventoryitemid,
-              quantity: item.quantity,
-              unit: inventoryItem?.unit || item.unit,
-              category: inventoryItem?.category || item.category,
-              supplier: inventoryItem?.supplier || item.supplier,
-              description: inventoryItem?.description || item.description,
-          }
-      })
-    }));
-    setBoms(bomsWithItems);
-    showNotification({
-      type: 'success',
-      message: 'Bill of Materials updated successfully'
-    });
-  }, [user, showNotification, inventoryItems]);
+  }, [user, showNotification, fetchBOMs]);
 
   const deleteBOM = useCallback(async (id: string) => {
     // Delete BOM (cascade deletes items)
@@ -213,57 +252,84 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('BOM not found');
     }
 
+    // Create new jsPDF instance
     const doc = new jsPDF();
-    console.log('jsPDF instance created. autoTable:', (doc as any).autoTable);
 
-    // Add title and project ID
-    doc.setFontSize(16);
-    doc.text(`Title: ${bom.title}`, 14, 20);
-    if (bom.projectId) {
-      doc.text(`Project ID: ${bom.projectId}`, 14, 30);
-    }
+    // Add EdgeTech Logo
+    const imgData = '/images/edgetech_logo.png.png';
+    const logoHeight = 20; // Define logo height for calculation
+    const logoWidth = 50;
+    const logoX = 14;
+    const logoY = 10;
+    doc.addImage(imgData, 'PNG', logoX, logoY, logoWidth, logoHeight);
 
-    // Create table data
-    const tableData = bom.items.map((item, index) => {
-      const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
-      return [
-        (index + 1).toString(), // Item No.
-        inventoryItem?.product_name || 'N/A', // Item
-        item.description || 'N/A', // Description
-        item.unit || 'N/A', // Unit
-        item.category || 'N/A', // Category
-        item.supplier || 'N/A', // Supplier
-        item.quantity.toString(), // Quantity
-      ];
-    });
+    let currentY = logoY + logoHeight + 15; // Start text below logo with more padding
 
-    // Add table
+    // Add title and metadata
+    doc.setFontSize(18);
+    doc.text(`Bill of Materials: ${bom.title}`, 14, currentY);
+    currentY += 10; // Increment for next line (larger for title)
+
+    doc.setFontSize(12);
+    doc.text(`Description: ${bom.description || 'N/A'}`, 14, currentY);
+    currentY += 7;
+
+    doc.text(`Category: ${bom.category || 'N/A'}`, 14, currentY);
+    currentY += 7;
+
+    doc.text(`Author: ${bom.author || 'N/A'}`, 14, currentY);
+    currentY += 7;
+
+    doc.text(`Project ID: ${bom.projectId || 'N/A'}`, 14, currentY);
+    currentY += 7;
+
+    // Date formatting helper function
+    const formatDate = (dateString: string | undefined | null) => {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
+    };
+
+    doc.text(`Created: ${formatDate(bom.createdAt)}`, 14, currentY);
+    currentY += 7;
+
+    doc.text(`Last Updated: ${formatDate(bom.updatedAt)}`, 14, currentY);
+    currentY += 15; // Add more space before the table
+
+    // Prepare data for the table
+    const tableColumn = ["Item No.", "Item", "Description", "Unit", "Category", "Supplier", "Quantity"];
+    const tableRows = bom.items.map((item, index) => [
+      index + 1,
+      item.inventoryDetails?.product_name || 'N/A',
+      item.description || 'N/A',
+      item.unit || 'N/A',
+      item.category || 'N/A',
+      item.supplier || 'N/A',
+      item.quantity,
+    ]);
+
+    // Add table using autoTable
     (doc as any).autoTable({
-      startY: bom.projectId ? 40 : 30, // Adjust startY based on whether Project ID is present
-      head: [['Item No.', 'Item', 'Description', 'Unit', 'Category', 'Supplier', 'Quantity']],
-      body: tableData,
-      theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak' },
-      headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: 'bold' },
-      columnStyles: { // Apply styles to specific columns
+      head: [tableColumn],
+      body: tableRows,
+      startY: currentY, // Use dynamically calculated Y
+      headStyles: { fillColor: [94, 46, 142], textColor: 255, fontStyle: 'bold' }, // EdgeTech Purple and White
+      styles: { fontSize: 9, textColor: [50, 50, 50] },
+      columnStyles: {
         0: { cellWidth: 15 }, // Item No.
-        1: { cellWidth: 'auto' }, // Item
-        2: { cellWidth: 'auto' }, // Description
+        1: { cellWidth: 30 }, // Item
+        2: { cellWidth: 40 }, // Description
         3: { cellWidth: 15 }, // Unit
-        4: { cellWidth: 'auto' }, // Category
-        5: { cellWidth: 'auto' }, // Supplier
+        4: { cellWidth: 25 }, // Category
+        5: { cellWidth: 25 }, // Supplier
         6: { cellWidth: 20 }, // Quantity
       }
     });
 
     // Save the PDF
-    doc.save(`BOM-${bom.title.replace(/ /g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`);
-
-    showNotification({
-      type: 'success',
-      message: 'BOM exported to PDF successfully'
-    });
-  }, [getBOMById, inventoryItems, showNotification]);
+    doc.save(`BOM_${bom.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+    showNotification({ type: 'success', message: 'BOM exported to PDF successfully' });
+  }, [getBOMById, showNotification]);
 
   const exportBOMToCSV = useCallback(async (id: string) => {
     const bom = getBOMById(id);
@@ -271,76 +337,86 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('BOM not found');
     }
 
-    let csvContent = 'Item No.,Item,Description,Unit,Category,Supplier,Quantity\n'; // CSV Headers
+    console.log('BOM items for CSV export:', bom.items);
 
-    bom.items.forEach((item, index) => {
-      const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
-      const itemNo = (index + 1).toString();
-      const itemName = inventoryItem?.product_name || 'N/A';
-      const description = item.description || 'N/A';
-      const unit = item.unit || 'N/A';
-      const category = item.category || 'N/A';
-      const supplier = item.supplier || 'N/A';
-      const quantity = item.quantity.toString();
-      csvContent += `"${itemNo}","${itemName}","${description}","${unit}","${category}","${supplier}","${quantity}"\n`;
+    const headers = ["Item No.", "Item", "Description", "Unit", "Category", "Quantity"];
+    const rows = bom.items.map((item, index) => [
+      index + 1,
+      item.inventoryDetails?.product_name || 'N/A',
+      item.description || 'N/A',
+      item.unit || 'N/A',
+      item.category || 'N/A',
+      item.quantity,
+    ]);
+
+    let csvContent = headers.join(',') + '\n';
+    rows.forEach(row => {
+      csvContent += row.map(e => `\"${e}\"`).join(',') + '\n';
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `BOM-${bom.title.replace(/ /g, '_')}-${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    showNotification({
-      type: 'success',
-      message: 'BOM exported to CSV successfully'
-    });
-  }, [getBOMById, inventoryItems, showNotification]);
+    if (link.download !== undefined) { // Feature detection
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `BOM_${bom.title}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    showNotification({ type: 'success', message: 'BOM exported to CSV successfully' });
+  }, [getBOMById, showNotification]);
 
   const importBOMToCostEstimation = useCallback(async (id: string) => {
-    const bomToImport = getBOMById(id);
-    if (!bomToImport) {
-      showNotification({ type: 'error', message: 'BOM not found for import' });
-      return null; // Return null if BOM not found
+    const bom = getBOMById(id);
+    if (!bom) {
+      showNotification({ type: 'error', message: 'BOM not found for import.' });
+      return null; // Return null if BOM is not found
     }
 
-    // Map BOM items to CostEstimation items structure
-    const costEstimationItems = bomToImport.items.map(item => {
-        const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
-        return {
-            id: `ce-item-${item.id}`,
-            itemId: item.inventoryitemid,
-            name: inventoryItem?.product_name || 'Unknown Item',
-            description: inventoryItem?.description || '',
-            unit_price: inventoryItem?.unit_price || 0,
-            quantity: item.quantity,
-            total: (inventoryItem?.unit_price || 0) * item.quantity,
-        };
-    });
+    const importedItems = bom.items.map(item => ({
+      id: generateUUID(),
+      itemId: item.inventoryitemid,
+      name: item.inventoryDetails?.product_name || item.description || 'Unknown Item',
+      description: item.description || 'N/A',
+      unit_price: item.inventoryDetails?.unit_price || 0,
+      quantity: item.quantity,
+      unit: item.unit || 'N/A',
+      category: item.category || 'N/A',
+      supplier: item.supplier || 'N/A',
+      total: (item.inventoryDetails?.unit_price || 0) * item.quantity,
+    }));
 
-    showNotification({
-      type: 'info',
-      message: 'BOM items prepared for Cost Estimation'
-    });
+    const importedBOM = {
+      id: bom.id,
+      title: bom.title,
+      description: bom.description,
+      projectId: bom.projectId,
+      category: bom.category,
+      author: bom.author,
+      createdAt: bom.createdAt,
+      updatedAt: bom.updatedAt,
+      createdBy: bom.createdBy,
+      updatedBy: bom.updatedBy,
+      items: bom.items, // This will be the original BOMItem[] type
+    };
 
-    return { importedBOM: bomToImport, importedItems: costEstimationItems }; // Return the data
-  }, [getBOMById, inventoryItems, showNotification]);
+    showNotification({ type: 'success', message: `BOM '${bom.title}' imported to Cost Estimation.` });
+    return { importedBOM, importedItems };
+  }, [getBOMById, showNotification]);
 
-  const contextValue = useMemo(
-    () => ({
+  const contextValue = useMemo(() => ({
     boms,
     addBOM,
     updateBOM,
     deleteBOM,
     getBOMById,
     exportBOMToPDF,
-      exportBOMToCSV,
+    exportBOMToCSV,
     importBOMToCostEstimation,
-    }),
-    [boms, addBOM, updateBOM, deleteBOM, getBOMById, exportBOMToPDF, exportBOMToCSV, importBOMToCostEstimation]
-  );
+    fetchBOMs,
+  }), [boms, addBOM, updateBOM, deleteBOM, getBOMById, exportBOMToPDF, exportBOMToCSV, importBOMToCostEstimation, fetchBOMs]);
 
   return (
     <BOMContext.Provider value={contextValue}>

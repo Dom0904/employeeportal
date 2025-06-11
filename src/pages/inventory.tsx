@@ -18,6 +18,11 @@ import {
   Typography,
   Chip,
   Tooltip,
+  Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -27,11 +32,12 @@ import {
 import { useInventory } from '../contexts/InventoryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { InventoryItem, InventoryStatus } from '../types/Inventory';
+import { CATEGORIES, UNITS } from '../constants/inventoryConstants';
 
 interface InventoryFormData extends Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> {
-  unit?: string;
-  category?: string;
-  supplier?: string;
+  unit?: string | null;
+  category?: string | null;
+  supplier?: string | null;
 }
 
 const getStatusColor = (status: InventoryStatus) => {
@@ -51,7 +57,7 @@ const getStatusColor = (status: InventoryStatus) => {
 
 const Inventory = () => {
   const { items, addItem, editItem, deleteItem } = useInventory();
-  const { /* user */ } = useAuth();
+  const { user } = useAuth(); // Assuming user is needed for roles or permissions
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -62,9 +68,9 @@ const Inventory = () => {
     description: '',
     unit_price: 0,
     quantity: 0,
-    unit: '',
-    category: '',
-    supplier: '',
+    unit: null, // Initialize with null
+    category: null, // Initialize with null
+    supplier: null,
     status: 'in-stock',
   });
   const [password, setPassword] = useState('');
@@ -75,13 +81,13 @@ const Inventory = () => {
       const newItem: Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> = {
         product_id: formData.product_id,
         product_name: formData.product_name,
-        description: formData.description,
+        description: formData.description || '',
         unit_price: formData.unit_price,
         quantity: formData.quantity,
         status: formData.status,
-        unit: formData.unit,
-        category: formData.category,
-        supplier: formData.supplier,
+        unit: formData.unit || null,
+        category: formData.category || null,
+        supplier: formData.supplier || null,
       };
       await addItem(newItem);
       setIsAddDialogOpen(false);
@@ -91,9 +97,9 @@ const Inventory = () => {
         description: '',
         unit_price: 0,
         quantity: 0,
-        unit: '',
-        category: '',
-        supplier: '',
+        unit: null,
+        category: null,
+        supplier: null,
         status: 'in-stock',
       });
     } catch (err) {
@@ -104,7 +110,12 @@ const Inventory = () => {
   const handleEdit = async () => {
     if (!selectedItem) return;
     try {
-      await editItem(selectedItem.id, formData);
+      await editItem(selectedItem.id, {
+        ...formData,
+        unit: formData.unit || null,
+        category: formData.category || null,
+        supplier: formData.supplier || null,
+      });
       setIsEditDialogOpen(false);
       setSelectedItem(null);
     } catch (err) {
@@ -127,14 +138,14 @@ const Inventory = () => {
   const openEditDialog = (item: InventoryItem) => {
     setSelectedItem(item);
     setFormData({
-      product_id: item.product_id,
-      product_name: item.product_name,
+      product_id: item.product_id || '',
+      product_name: item.product_name || '',
       description: item.description || '',
       unit_price: item.unit_price || 0,
       quantity: item.quantity,
-      unit: item.unit || '',
-      category: item.category || '',
-      supplier: item.supplier || '',
+      unit: item.unit || null,
+      category: item.category || null,
+      supplier: item.supplier || null,
       status: item.status,
     });
     setIsEditDialogOpen(true);
@@ -143,6 +154,15 @@ const Inventory = () => {
   const openDeleteDialog = (item: InventoryItem) => {
     setSelectedItem(item);
     setIsDeleteDialogOpen(true);
+  };
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+    }).format(amount);
   };
 
   return (
@@ -177,13 +197,13 @@ const Inventory = () => {
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>{item.product_id}</TableCell>
-                <TableCell>{item.product_name}</TableCell>
-                <TableCell>{item.description}</TableCell>
-                <TableCell>{item.unit}</TableCell>
-                <TableCell>{item.category}</TableCell>
-                <TableCell>{item.supplier}</TableCell>
-                <TableCell align="right">${item.unit_price ? item.unit_price.toFixed(2) : 'N/A'}</TableCell>
+                <TableCell>{item.product_id || ''}</TableCell>
+                <TableCell>{item.product_name || ''}</TableCell>
+                <TableCell>{item.description || ''}</TableCell>
+                <TableCell>{item.unit || ''}</TableCell>
+                <TableCell>{item.category || ''}</TableCell>
+                <TableCell>{item.supplier || ''}</TableCell>
+                <TableCell align="right">{formatCurrency(item.unit_price)}</TableCell>
                 <TableCell align="right">{item.quantity}</TableCell>
                 <TableCell>
                   <Chip
@@ -199,11 +219,7 @@ const Inventory = () => {
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Delete">
-                    <IconButton
-                      onClick={() => openDeleteDialog(item)}
-                      size="small"
-                      color="error"
-                    >
+                    <IconButton onClick={() => openDeleteDialog(item)} size="small">
                       <DeleteIcon />
                     </IconButton>
                   </Tooltip>
@@ -214,283 +230,202 @@ const Inventory = () => {
         </Table>
       </TableContainer>
 
-      {/* Add Dialog */}
-      <Dialog open={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)}>
-        <DialogTitle>Add Inventory Item</DialogTitle>
+      {/* Add Item Dialog */}
+      <Dialog open={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Add New Inventory Item</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-            <TextField
-              label="Product ID"
-              value={formData.product_id}
-              onChange={(e) =>
-                setFormData({ ...formData, product_id: e.target.value })
-              }
-            />
-            <TextField
-              label="Product Name"
-              value={formData.product_name}
-              onChange={(e) =>
-                setFormData({ ...formData, product_name: e.target.value })
-              }
-            />
-            <TextField
-              label="Description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              multiline
-              rows={3}
-            />
-            <TextField
-              label="Unit Price"
-              type="number"
-              value={formData.unit_price}
-              onChange={(e) =>
-                setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })
-              }
-              inputProps={{
-                step: "0.01",
-              }}
-            />
-            <TextField
-              label="Quantity"
-              type="number"
-              value={formData.quantity}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  quantity: parseInt(e.target.value) || 0,
-                })
-              }
-            />
-            <TextField
-              select
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Product ID"
+            type="text"
+            fullWidth
+            value={formData.product_id}
+            onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Product Name"
+            type="text"
+            fullWidth
+            value={formData.product_name}
+            onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            type="text"
+            fullWidth
+            multiline
+            rows={2}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Unit Price"
+            type="number"
+            fullWidth
+            value={formData.unit_price}
+            onChange={(e) => setFormData({ ...formData, unit_price: Number(e.target.value) })}
+          />
+          <TextField
+            margin="dense"
+            label="Quantity"
+            type="number"
+            fullWidth
+            value={formData.quantity}
+            onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Unit</InputLabel>
+            <Select
+              value={String(formData.unit || '')}
               label="Unit"
-              value={formData.unit}
-              onChange={(e) =>
-                setFormData({ ...formData, unit: e.target.value })
-              }
-              SelectProps={{ native: true }}
+              onChange={(e) => setFormData({ ...formData, unit: e.target.value || null })}
             >
-              <option value=""></option>
-              <option value="pcs">Pcs</option>
-              <option value="M">M</option>
-              <option value="rolls">Rolls</option>
-              <option value="assembly">Assembly</option>
-              <option value="sacks">Sacks</option>
-              <option value="Kg">Kg</option>
-              <option value="pack">Pack</option>
-              <option value="crate">Crate</option>
-              <option value="lengths">Lengths</option>
-            </TextField>
-            <TextField
-              select
+              <MenuItem value="">None</MenuItem>
+              {UNITS.map((unitOption) => (
+                <MenuItem key={unitOption} value={unitOption}>{unitOption}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={String(formData.category || '')}
               label="Category"
-              value={formData.category}
-              onChange={(e) =>
-                setFormData({ ...formData, category: e.target.value })
-              }
-              SelectProps={{ native: true }}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value || null })}
             >
-              <option value=""></option>
-              <option value="electrical">Electrical</option>
-              <option value="mechanical">Mechanical</option>
-              <option value="hvac">HVAC</option>
-              <option value="sanitary">Sanitary</option>
-              <option value="trading-goods">Trading Goods</option>
-              <option value="finished-goods">Finished Goods</option>
-              <option value="fabricated">Fabricated</option>
-              <option value="aux-electronics">AUX Electronics</option>
-            </TextField>
-            <TextField
-              label="Supplier"
-              value={formData.supplier}
-              onChange={(e) =>
-                setFormData({ ...formData, supplier: e.target.value })
-              }
-            />
-            <TextField
-              select
-              label="Status"
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  status: e.target.value as InventoryStatus,
-                })
-              }
-              SelectProps={{ native: true }}
-            >
-              <option value="in-stock">In Stock</option>
-              <option value="out-of-stock">Out of Stock</option>
-              <option value="restock">Restock</option>
-              <option value="low-stock">Low Stock</option>
-            </TextField>
-          </Box>
+              <MenuItem value="">None</MenuItem>
+              {CATEGORIES.map((catOption) => (
+                <MenuItem key={catOption} value={catOption}>{catOption}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            margin="dense"
+            label="Supplier"
+            type="text"
+            fullWidth
+            value={formData.supplier}
+            onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleAdd} variant="contained">
-            Add
-          </Button>
+          <Button onClick={handleAdd} variant="contained">Add</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onClose={() => setIsEditDialogOpen(false)}>
+      {/* Edit Item Dialog */}
+      <Dialog open={isEditDialogOpen} onClose={() => setIsEditDialogOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>Edit Inventory Item</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-            <TextField
-              label="Product ID"
-              value={formData.product_id}
-              onChange={(e) =>
-                setFormData({ ...formData, product_id: e.target.value })
-              }
-            />
-            <TextField
-              label="Product Name"
-              value={formData.product_name}
-              onChange={(e) =>
-                setFormData({ ...formData, product_name: e.target.value })
-              }
-            />
-            <TextField
-              label="Description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              multiline
-              rows={3}
-            />
-            <TextField
-              label="Unit Price"
-              type="number"
-              value={formData.unit_price}
-              onChange={(e) =>
-                setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })
-              }
-              inputProps={{
-                step: "0.01",
-              }}
-            />
-            <TextField
-              label="Quantity"
-              type="number"
-              value={formData.quantity}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  quantity: parseInt(e.target.value) || 0,
-                })
-              }
-            />
-            <TextField
-              select
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Product ID"
+            type="text"
+            fullWidth
+            value={selectedItem?.product_id || ''}
+            onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
+            disabled
+          />
+          <TextField
+            margin="dense"
+            label="Product Name"
+            type="text"
+            fullWidth
+            value={formData.product_name}
+            onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            type="text"
+            fullWidth
+            multiline
+            rows={2}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Unit Price"
+            type="number"
+            fullWidth
+            value={formData.unit_price}
+            onChange={(e) => setFormData({ ...formData, unit_price: Number(e.target.value) })}
+          />
+          <TextField
+            margin="dense"
+            label="Quantity"
+            type="number"
+            fullWidth
+            value={formData.quantity}
+            onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
+          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Unit</InputLabel>
+            <Select
+              value={String(formData.unit || '')}
               label="Unit"
-              value={formData.unit}
-              onChange={(e) =>
-                setFormData({ ...formData, unit: e.target.value })
-              }
-              SelectProps={{ native: true }}
+              onChange={(e) => setFormData({ ...formData, unit: e.target.value || null })}
             >
-              <option value=""></option>
-              <option value="pcs">Pcs</option>
-              <option value="M">M</option>
-              <option value="rolls">Rolls</option>
-              <option value="assembly">Assembly</option>
-              <option value="sacks">Sacks</option>
-              <option value="Kg">Kg</option>
-              <option value="pack">Pack</option>
-              <option value="crate">Crate</option>
-              <option value="lengths">Lengths</option>
-            </TextField>
-            <TextField
-              select
+              <MenuItem value="">None</MenuItem>
+              {UNITS.map((unitOption) => (
+                <MenuItem key={unitOption} value={unitOption}>{unitOption}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={String(formData.category || '')}
               label="Category"
-              value={formData.category}
-              onChange={(e) =>
-                setFormData({ ...formData, category: e.target.value })
-              }
-              SelectProps={{ native: true }}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value || null })}
             >
-              <option value=""></option>
-              <option value="electrical">Electrical</option>
-              <option value="mechanical">Mechanical</option>
-              <option value="hvac">HVAC</option>
-              <option value="sanitary">Sanitary</option>
-              <option value="trading-goods">Trading Goods</option>
-              <option value="finished-goods">Finished Goods</option>
-              <option value="fabricated">Fabricated</option>
-              <option value="aux-electronics">AUX Electronics</option>
-            </TextField>
-            <TextField
-              label="Supplier"
-              value={formData.supplier}
-              onChange={(e) =>
-                setFormData({ ...formData, supplier: e.target.value })
-              }
-            />
-            <TextField
-              select
-              label="Status"
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  status: e.target.value as InventoryStatus,
-                })
-              }
-              SelectProps={{ native: true }}
-            >
-              <option value="in-stock">In Stock</option>
-              <option value="out-of-stock">Out of Stock</option>
-              <option value="restock">Restock</option>
-              <option value="low-stock">Low Stock</option>
-            </TextField>
-          </Box>
+              <MenuItem value="">None</MenuItem>
+              {CATEGORIES.map((catOption) => (
+                <MenuItem key={catOption} value={catOption}>{catOption}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            margin="dense"
+            label="Supplier"
+            type="text"
+            fullWidth
+            value={formData.supplier}
+            onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleEdit} variant="contained">
-            Save
-          </Button>
+          <Button onClick={handleEdit} variant="contained">Save</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete Dialog */}
-      <Dialog
-        open={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-      >
+      {/* Delete Item Dialog */}
+      <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Delete Inventory Item</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-            <Typography>
-              Are you sure you want to delete{' '}
-              <strong>{selectedItem?.product_name}</strong>?
-            </Typography>
-            <Typography color="error" variant="body2">
-              This action cannot be undone. Please enter your password to confirm.
-            </Typography>
-            <TextField
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={!!error}
-              helperText={error}
-              fullWidth
-            />
-          </Box>
+          <Typography>Are you sure you want to delete "{selectedItem?.product_name}"?</Typography>
+          <TextField
+            margin="dense"
+            label="Admin Password"
+            type="password"
+            fullWidth
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={!!error}
+            helperText={error}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDelete} variant="contained" color="error">
-            Delete
-          </Button>
+          <Button onClick={handleDelete} variant="contained" color="error">Delete</Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -40,52 +40,18 @@ import { UserRole } from '../contexts/AuthContext';
 import { BOMItem } from '../types/BOM';
 import { InventoryItem } from '../types/Inventory';
 import { generateUUID } from '../utils/uuid';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
+import { CATEGORIES, UNITS } from '../constants/inventoryConstants';
 
 interface SelectedBOMItem extends Omit<BOMItem, 'author'> {
-  inventoryDetails?: InventoryItem;
+  inventoryDetails?: InventoryItem | null;
 }
-
-const CATEGORIES = [
-  'Raw Materials',
-  'Components',
-  'Finished Goods',
-  'Electronics',
-  'Mechanical',
-  'Electrical',
-  'Plumbing',
-  'HVAC',
-  'Other'
-];
-
-const UNITS = [
-  'pcs',
-  'kg',
-  'g',
-  'lb',
-  'oz',
-  'm',
-  'cm',
-  'mm',
-  'in',
-  'ft',
-  'yd',
-  'm²',
-  'ft²',
-  'm³',
-  'ft³',
-  'L',
-  'mL',
-  'gal',
-  'qt',
-  'pt'
-];
 
 const BillOfMaterial = () => {
   const { user } = useAuth();
   const { boms, addBOM, updateBOM, deleteBOM, exportBOMToPDF, importBOMToCostEstimation, exportBOMToCSV } = useBOM();
   const { items: inventoryItems } = useInventory();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editingBOM, setEditingBOM] = useState<any>(null);
   const [title, setTitle] = useState('');
@@ -133,7 +99,7 @@ const BillOfMaterial = () => {
       setAuthor(bom.author || '');
       setSelectedItems(bom.items.map((bomItem: BOMItem) => ({
         ...bomItem,
-        inventoryDetails: inventoryItems.find(invItem => invItem.id === bomItem.inventoryitemid),
+        inventoryDetails: inventoryItems.find(invItem => invItem.id === bomItem.inventoryitemid) || null,
       })));
     } else {
       setEditingBOM(null);
@@ -157,29 +123,34 @@ const BillOfMaterial = () => {
   };
 
   const handleSave = async () => {
+    console.log('handleSave called');
     const bomData = {
       title,
       description,
       projectId: editingBOM?.projectId,
       category,
       author,
-      items: selectedItems.map((selectedBomItem) => ({
-        id: selectedBomItem.id || generateUUID(),
-        bom_id: selectedBomItem.bom_id || '',
-        inventoryitemid: selectedBomItem.inventoryitemid,
-        quantity: selectedBomItem.quantity,
-        unit: selectedBomItem.unit,
-        category: selectedBomItem.category,
-        supplier: selectedBomItem.supplier,
-        description: selectedBomItem.description,
-      }))
     };
+
+    const itemsToSave = selectedItems.map((selectedBomItem) => ({
+      id: selectedBomItem.id || generateUUID(),
+      bom_id: selectedBomItem.bom_id || editingBOM?.id || '',
+      inventoryitemid: selectedBomItem.inventoryitemid,
+      quantity: selectedBomItem.quantity,
+      unit: selectedBomItem.unit,
+      category: selectedBomItem.category,
+      supplier: selectedBomItem.supplier,
+      description: selectedBomItem.description,
+    }));
+
+    console.log('BOM Data to be saved:', bomData);
+    console.log('BOM Items to be saved:', itemsToSave);
 
     try {
       if (editingBOM) {
-        await updateBOM(editingBOM.id, bomData);
+        await updateBOM(editingBOM.id, { ...bomData, items: itemsToSave });
       } else {
-        await addBOM(bomData);
+        await addBOM({ ...bomData, items: itemsToSave });
       }
       handleClose();
     } catch (error) {
@@ -207,12 +178,27 @@ const BillOfMaterial = () => {
     try {
       const importedData = await importBOMToCostEstimation(id);
       if (importedData) {
-        navigate('/cost-estimation', { state: { importedBOM: importedData.importedBOM, importedItems: importedData.importedItems } });
+        router.push({
+          pathname: '/cost-estimation',
+          query: { importedBOM: JSON.stringify(importedData.importedBOM), importedItems: JSON.stringify(importedData.importedItems) },
+        });
       }
     } catch (error) {
       console.error('Error importing BOM to Cost Estimation:', error);
     }
-  }, [importBOMToCostEstimation, navigate]);
+  }, [importBOMToCostEstimation, router]);
+
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) {
+      return 'N/A';
+    }
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'N/A';
+    }
+    // Format to Philippine Standard Time
+    return date.toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' });
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -257,8 +243,8 @@ const BillOfMaterial = () => {
                 <TableCell sx={{ fontSize: '0.9rem' }}>{bom.author}</TableCell>
                 <TableCell sx={{ fontSize: '0.9rem' }}>{bom.projectId}</TableCell>
                 <TableCell sx={{ fontSize: '0.9rem' }}>{bom.items.length} items</TableCell>
-                <TableCell sx={{ fontSize: '0.9rem' }}>{new Date(bom.createdAt).toLocaleDateString()}</TableCell>
-                <TableCell sx={{ fontSize: '0.9rem' }}>{new Date(bom.updatedAt).toLocaleDateString()}</TableCell>
+                <TableCell sx={{ fontSize: '0.9rem' }}>{formatDate(bom.createdAt)}</TableCell>
+                <TableCell sx={{ fontSize: '0.9rem' }}>{formatDate(bom.updatedAt)}</TableCell>
                 <TableCell align="right" sx={{ fontSize: '0.9rem' }}>
                   <Tooltip title="Edit">
                     <IconButton
@@ -302,10 +288,20 @@ const BillOfMaterial = () => {
         open={open}
         onClose={handleClose}
         anchor="right"
-        ref={drawerRef}
-        onMouseDown={handleMouseDown}
         PaperProps={{ style: { width: drawerWidth } }}
       >
+        <Box ref={drawerRef} sx={{
+          width: 5,
+          cursor: 'ew-resize',
+          position: 'absolute',
+          left: -2.5,
+          top: 0,
+          bottom: 0,
+          zIndex: 9999,
+          backgroundColor: 'transparent',
+        }}
+        onMouseDown={handleMouseDown}
+        />
         <DialogTitle>
           {editingBOM ? 'Edit Bill of Materials' : 'Create New Bill of Materials'}
         </DialogTitle>
@@ -339,33 +335,6 @@ const BillOfMaterial = () => {
                   inputProps={{ style: { fontSize: '1.1rem' } }}
                 />
               </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={category}
-                    label="Category"
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    {CATEGORIES.map((cat) => (
-                      <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="dense"
-                  label="Author"
-                  type="text"
-                  fullWidth
-                  variant="outlined"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  inputProps={{ style: { fontSize: '1.1rem' } }}
-                  InputLabelProps={{ style: { fontSize: '1.1rem' } }}
-                />
-              </Grid>
               <Grid item xs={12}>
                 <Typography variant="subtitle1" gutterBottom>
                   Items
@@ -389,18 +358,19 @@ const BillOfMaterial = () => {
                           <TableCell sx={{ minWidth: 250 }}>
                             <Autocomplete
                               options={inventoryItems}
-                              getOptionLabel={(option) => option.product_name || ''}
-                              value={item.inventoryDetails || undefined}
+                              getOptionLabel={(option) => option ? option.product_name || '' : ''}
+                              value={item.inventoryDetails || null}
+                              isOptionEqualToValue={(option, value) => option.id === value.id}
                               onChange={(_event, newValue) => {
                                 const updatedItems = [...selectedItems];
                                 updatedItems[index] = {
                                   ...item,
                                   inventoryitemid: newValue?.id || '',
-                                  inventoryDetails: newValue || undefined,
-                                  unit: newValue?.unit || '',
-                                  category: newValue?.category || '',
-                                  supplier: newValue?.supplier || '',
-                                  description: newValue?.description || '',
+                                  inventoryDetails: newValue || null,
+                                  unit: newValue?.unit || null,
+                                  category: newValue?.category || null,
+                                  supplier: newValue?.supplier || null,
+                                  description: newValue?.description || null,
                                 };
                                 setSelectedItems(updatedItems);
                               }}
@@ -431,61 +401,34 @@ const BillOfMaterial = () => {
                               }}
                               fullWidth
                               margin="dense"
+                              InputProps={{ readOnly: false }}
                               inputProps={{ style: { fontSize: '1.0rem' } }}
                               InputLabelProps={{ style: { fontSize: '1.0rem' } }}
                             />
                           </TableCell>
                           <TableCell sx={{ minWidth: 100 }}>
-                            <FormControl fullWidth margin="dense">
-                              <InputLabel id={`unit-select-label-${index}`} sx={{ fontSize: '1.0rem' }}>Unit</InputLabel>
-                              <Select
-                                labelId={`unit-select-label-${index}`}
-                                value={UNITS.includes(item.unit) ? item.unit : ''}
-                                label="Unit"
-                                disabled
-                                sx={{ fontSize: '1.0rem' }}
-                                MenuProps={{
-                                  MenuListProps: {
-                                    sx: { fontSize: '1.0rem' }
-                                  }
-                                }}
-                              >
-                                <MenuItem value="" sx={{ fontSize: '1.0rem' }}>None</MenuItem>
-                                {UNITS.map((unitOption) => (
-                                  <MenuItem key={unitOption} value={unitOption} sx={{ fontSize: '1.0rem' }}>
-                                    {unitOption}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
-                          </TableCell>
-                          <TableCell sx={{ minWidth: 150 }}>
-                            <FormControl fullWidth margin="dense">
-                              <InputLabel id={`category-select-label-${index}`} sx={{ fontSize: '1.0rem' }}>Category</InputLabel>
-                              <Select
-                                labelId={`category-select-label-${index}`}
-                                value={CATEGORIES.includes(item.category) ? item.category : ''}
-                                label="Category"
-                                disabled
-                                sx={{ fontSize: '1.0rem' }}
-                                MenuProps={{
-                                  MenuListProps: {
-                                    sx: { fontSize: '1.0rem' }
-                                  }
-                                }}
-                              >
-                                <MenuItem value="" sx={{ fontSize: '1.0rem' }}>None</MenuItem>
-                                {CATEGORIES.map((catOption) => (
-                                  <MenuItem key={catOption} value={catOption} sx={{ fontSize: '1.0rem' }}>
-                                    {catOption}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <TextField
+                              value={String(item.unit || '')}
+                              label="Unit"
+                              fullWidth
+                              margin="dense"
+                              InputProps={{ readOnly: true, style: { fontSize: '1.0rem' } }}
+                              InputLabelProps={{ style: { fontSize: '1.0rem' } }}
+                            />
                           </TableCell>
                           <TableCell sx={{ minWidth: 150 }}>
                             <TextField
-                              value={item.supplier || ''}
+                              value={String(item.category || '')}
+                              label="Category"
+                              fullWidth
+                              margin="dense"
+                              InputProps={{ readOnly: true, style: { fontSize: '1.0rem' } }}
+                              InputLabelProps={{ style: { fontSize: '1.0rem' } }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ minWidth: 150 }}>
+                            <TextField
+                              value={String(item.supplier || '')}
                               label="Supplier"
                               fullWidth
                               margin="dense"
@@ -495,7 +438,7 @@ const BillOfMaterial = () => {
                           </TableCell>
                           <TableCell sx={{ minWidth: 300 }}>
                             <TextField
-                              value={item.description || ''}
+                              value={String(item.description || '')}
                               label="Description"
                               fullWidth
                               margin="dense"
@@ -524,11 +467,11 @@ const BillOfMaterial = () => {
                     bom_id: '',
                     inventoryitemid: '',
                     quantity: 1,
-                    unit: '',
-                    category: '',
-                    supplier: '',
-                    description: '',
-                    inventoryDetails: undefined,
+                    unit: null,
+                    category: null,
+                    supplier: null,
+                    description: null,
+                    inventoryDetails: null,
                   }])}
                   startIcon={<AddIcon />}
                 >
@@ -536,28 +479,35 @@ const BillOfMaterial = () => {
                 </Button>
               </Grid>
               <Grid item xs={12} sm={6}>
-                <Autocomplete
-                  options={CATEGORIES}
-                  value={category}
-                  onChange={(_event, newValue) => setCategory(newValue || '')}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      margin="dense"
-                      label="Category"
-                      variant="outlined"
-                      fullWidth
-                      inputProps={{
-                        ...params.inputProps,
-                        style: { fontSize: '1.1rem' }
-                      }}
-                      InputLabelProps={{ style: { fontSize: '1.1rem' } }}
-                    />
-                  )}
-                />
+                <FormControl fullWidth margin="dense">
+                  <InputLabel id="category-label">Category</InputLabel>
+                  <Select
+                    labelId="category-label"
+                    id="category"
+                    value={category || ''}
+                    label="Category"
+                    onChange={(e) => setCategory(e.target.value as string)}
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <MenuItem key={cat} value={cat}>
+                        {cat}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Grid>
               <Grid item xs={12} sm={6}>
-                {/* Removed Author Field */}
+                <TextField
+                  margin="dense"
+                  label="Author"
+                  type="text"
+                  fullWidth
+                  variant="outlined"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  inputProps={{ style: { fontSize: '1.1rem' } }}
+                  InputLabelProps={{ style: { fontSize: '1.1rem' } }}
+                />
               </Grid>
             </Grid>
           </Box>
