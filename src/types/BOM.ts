@@ -1,5 +1,15 @@
 import { InventoryItem } from './Inventory';
 
+interface CostEstimationItem {
+  id: string;
+  itemId: string;
+  name: string;
+  description: string;
+  unit_price: number;
+  quantity: number;
+  total: number;
+}
+
 export interface BOMItem {
   id: string;
   bom_id: string;
@@ -9,7 +19,6 @@ export interface BOMItem {
   category: string;
   supplier: string;
   description: string;
-  author: string;
 }
 
 export interface BOM {
@@ -42,5 +51,5 @@ export interface BOMContextType {
   getBOMById: (id: string) => BOM | undefined;
   exportBOMToPDF: (id: string) => Promise<void>;
   exportBOMToCSV: (id: string) => Promise<void>;
-  importBOMToCostEstimation: (id: string) => Promise<void>;
+  importBOMToCostEstimation: (id: string) => Promise<{ importedBOM: BOM; importedItems: CostEstimationItem[] } | null>;
 }

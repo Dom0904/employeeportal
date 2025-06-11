@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -39,8 +39,10 @@ import { useInventory } from '../contexts/InventoryContext';
 import { UserRole } from '../contexts/AuthContext';
 import { BOMItem } from '../types/BOM';
 import { InventoryItem } from '../types/Inventory';
+import { generateUUID } from '../utils/uuid';
+import { useNavigate } from 'react-router-dom';
 
-interface SelectedBOMItem extends BOMItem {
+interface SelectedBOMItem extends Omit<BOMItem, 'author'> {
   inventoryDetails?: InventoryItem;
 }
 
@@ -83,6 +85,7 @@ const BillOfMaterial = () => {
   const { user } = useAuth();
   const { boms, addBOM, updateBOM, deleteBOM, exportBOMToPDF, importBOMToCostEstimation, exportBOMToCSV } = useBOM();
   const { items: inventoryItems } = useInventory();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editingBOM, setEditingBOM] = useState<any>(null);
   const [title, setTitle] = useState('');
@@ -92,6 +95,34 @@ const BillOfMaterial = () => {
   const [selectedItems, setSelectedItems] = useState<SelectedBOMItem[]>([]);
   const [drawerWidth, setDrawerWidth] = useState(800);
   const drawerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    // Only allow resizing with left mouse button
+    if (e.button === 0) {
+      document.addEventListener('mouseup', handleMouseUp, true);
+      document.addEventListener('mousemove', handleMouseMove, true);
+    }
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    document.removeEventListener('mouseup', handleMouseUp, true);
+    document.removeEventListener('mousemove', handleMouseMove, true);
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (drawerRef.current) {
+      let newWidth = window.innerWidth - e.clientX; // Calculate width from the right edge
+      setDrawerWidth(Math.max(300, Math.min(newWidth, window.innerWidth * 0.9)));
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mouseup', handleMouseUp, true);
+      document.removeEventListener('mousemove', handleMouseMove, true);
+    };
+  }, [handleMouseMove, handleMouseUp]);
 
   const handleOpen = (bom?: any) => {
     if (bom) {
@@ -133,7 +164,7 @@ const BillOfMaterial = () => {
       category,
       author,
       items: selectedItems.map((selectedBomItem) => ({
-        id: selectedBomItem.id || crypto.randomUUID(),
+        id: selectedBomItem.id || generateUUID(),
         bom_id: selectedBomItem.bom_id || '',
         inventoryitemid: selectedBomItem.inventoryitemid,
         quantity: selectedBomItem.quantity,
@@ -141,7 +172,6 @@ const BillOfMaterial = () => {
         category: selectedBomItem.category,
         supplier: selectedBomItem.supplier,
         description: selectedBomItem.description,
-        author: selectedBomItem.author,
       }))
     };
 
@@ -173,23 +203,16 @@ const BillOfMaterial = () => {
     }
   };
 
-  const handleImportToCostEstimation = async (id: string) => {
+  const handleImportToCostEstimation = useCallback(async (id: string) => {
     try {
-      await importBOMToCostEstimation(id);
+      const importedData = await importBOMToCostEstimation(id);
+      if (importedData) {
+        navigate('/cost-estimation', { state: { importedBOM: importedData.importedBOM, importedItems: importedData.importedItems } });
+      }
     } catch (error) {
       console.error('Error importing BOM to Cost Estimation:', error);
     }
-  };
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 2 && drawerRef.current) {
-      e.preventDefault();
-      const rect = drawerRef.current.getBoundingClientRect();
-      if (rect.right < e.clientX || rect.bottom < e.clientY || rect.left > e.clientX || rect.top > e.clientY) {
-        setOpen(false);
-      }
-    }
-  }, []);
+  }, [importBOMToCostEstimation, navigate]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -330,12 +353,17 @@ const BillOfMaterial = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={12} sm={6}>
                 <TextField
-                  fullWidth
+                  margin="dense"
                   label="Author"
+                  type="text"
+                  fullWidth
+                  variant="outlined"
                   value={author}
                   onChange={(e) => setAuthor(e.target.value)}
+                  inputProps={{ style: { fontSize: '1.1rem' } }}
+                  InputLabelProps={{ style: { fontSize: '1.1rem' } }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -352,7 +380,6 @@ const BillOfMaterial = () => {
                         <TableCell sx={{ minWidth: 150 }}>Category</TableCell>
                         <TableCell sx={{ minWidth: 150 }}>Supplier</TableCell>
                         <TableCell sx={{ minWidth: 300 }}>Description</TableCell>
-                        <TableCell sx={{ minWidth: 150 }}>Author</TableCell>
                         <TableCell sx={{ minWidth: 50 }}></TableCell>
                       </TableRow>
                     </TableHead>
@@ -374,7 +401,6 @@ const BillOfMaterial = () => {
                                   category: newValue?.category || '',
                                   supplier: newValue?.supplier || '',
                                   description: newValue?.description || '',
-                                  author: newValue?.updated_by || '',
                                 };
                                 setSelectedItems(updatedItems);
                               }}
@@ -414,7 +440,7 @@ const BillOfMaterial = () => {
                               <InputLabel id={`unit-select-label-${index}`} sx={{ fontSize: '1.0rem' }}>Unit</InputLabel>
                               <Select
                                 labelId={`unit-select-label-${index}`}
-                                value={item.unit || ''}
+                                value={UNITS.includes(item.unit) ? item.unit : ''}
                                 label="Unit"
                                 disabled
                                 sx={{ fontSize: '1.0rem' }}
@@ -424,6 +450,7 @@ const BillOfMaterial = () => {
                                   }
                                 }}
                               >
+                                <MenuItem value="" sx={{ fontSize: '1.0rem' }}>None</MenuItem>
                                 {UNITS.map((unitOption) => (
                                   <MenuItem key={unitOption} value={unitOption} sx={{ fontSize: '1.0rem' }}>
                                     {unitOption}
@@ -437,7 +464,7 @@ const BillOfMaterial = () => {
                               <InputLabel id={`category-select-label-${index}`} sx={{ fontSize: '1.0rem' }}>Category</InputLabel>
                               <Select
                                 labelId={`category-select-label-${index}`}
-                                value={item.category || ''}
+                                value={CATEGORIES.includes(item.category) ? item.category : ''}
                                 label="Category"
                                 disabled
                                 sx={{ fontSize: '1.0rem' }}
@@ -447,6 +474,7 @@ const BillOfMaterial = () => {
                                   }
                                 }}
                               >
+                                <MenuItem value="" sx={{ fontSize: '1.0rem' }}>None</MenuItem>
                                 {CATEGORIES.map((catOption) => (
                                   <MenuItem key={catOption} value={catOption} sx={{ fontSize: '1.0rem' }}>
                                     {catOption}
@@ -475,16 +503,6 @@ const BillOfMaterial = () => {
                               InputLabelProps={{ style: { fontSize: '1.0rem' } }}
                             />
                           </TableCell>
-                          <TableCell sx={{ minWidth: 150 }}>
-                            <TextField
-                              value={item.author || ''}
-                              label="Author"
-                              fullWidth
-                              margin="dense"
-                              InputProps={{ readOnly: true, style: { fontSize: '1.0rem' } }}
-                              InputLabelProps={{ style: { fontSize: '1.0rem' } }}
-                            />
-                          </TableCell>
                           <TableCell sx={{ minWidth: 50 }}>
                             <IconButton
                               onClick={() => {
@@ -502,7 +520,7 @@ const BillOfMaterial = () => {
                 </TableContainer>
                 <Button
                   onClick={() => setSelectedItems([...selectedItems, {
-                    id: crypto.randomUUID(),
+                    id: generateUUID(),
                     bom_id: '',
                     inventoryitemid: '',
                     quantity: 1,
@@ -510,7 +528,6 @@ const BillOfMaterial = () => {
                     category: '',
                     supplier: '',
                     description: '',
-                    author: '',
                     inventoryDetails: undefined,
                   }])}
                   startIcon={<AddIcon />}
@@ -540,17 +557,7 @@ const BillOfMaterial = () => {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="dense"
-                  label="Author"
-                  type="text"
-                  fullWidth
-                  variant="outlined"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  inputProps={{ style: { fontSize: '1.1rem' } }}
-                  InputLabelProps={{ style: { fontSize: '1.1rem' } }}
-                />
+                {/* Removed Author Field */}
               </Grid>
             </Grid>
           </Box>

@@ -6,6 +6,7 @@ import { useNotifications } from './NotificationContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { supabase } from '../supabaseClient';
+import { generateUUID } from '../utils/uuid';
 
 const BOMContext = createContext<BOMContextType | undefined>(undefined);
 
@@ -33,7 +34,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
       // Get all BOM items
-      const { data: itemData, error: itemError } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description, author');
+      const { data: itemData, error: itemError } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description');
       if (itemError) {
         showNotification({ type: 'error', message: 'Failed to fetch BOM items' });
         return;
@@ -55,7 +56,6 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 category: inventoryItem?.category || item.category, // Prefer inventory item's category, fallback to bom_item's if available
                 supplier: inventoryItem?.supplier || item.supplier, // Prefer inventory item's supplier, fallback to bom_item's if available
                 description: inventoryItem?.description || item.description, // Prefer inventory item's description, fallback to bom_item's if available
-                author: item.author // Author is specific to BOM item
             }
         })
       }));
@@ -71,7 +71,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('User must be logged in to create BOM');
     }
 
-    const bomId = crypto.randomUUID();
+    const bomId = generateUUID();
     const bom: BOM = {
       ...newBom,
       id: bomId,
@@ -102,7 +102,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     // Insert BOM items
     const itemsToInsert = newBom.items.map(item => ({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         bom_id: bomId,
         inventoryitemid: item.inventoryitemid,
         quantity: item.quantity,
@@ -110,7 +110,6 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         category: item.category,
         supplier: item.supplier,
         description: item.description,
-        author: item.author
     }));
     const { error: itemError } = await supabase.from('bom_items').insert(itemsToInsert);
     if (itemError) {
@@ -153,7 +152,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await supabase.from('bom_items').delete().eq('bom_id', id);
       // Insert new items
       const itemsToInsert = updates.items.map(item => ({
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           bom_id: id,
           inventoryitemid: item.inventoryitemid,
           quantity: item.quantity,
@@ -161,13 +160,12 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           category: item.category,
           supplier: item.supplier,
           description: item.description,
-          author: item.author
       }));
       await supabase.from('bom_items').insert(itemsToInsert);
     }
     // Refresh BOMs
     const { data: bomData } = await supabase.from('boms').select('*');
-    const { data: itemData } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description, author');
+    const { data: itemData } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description');
     const bomsWithItems = (bomData ?? []).map((bom: any) => ({
       ...bom,
       items: (itemData ?? []).filter((item: any) => item.bom_id === bom.id).map((item: any) => {
@@ -181,7 +179,6 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               category: inventoryItem?.category || item.category,
               supplier: inventoryItem?.supplier || item.supplier,
               description: inventoryItem?.description || item.description,
-              author: item.author
           }
       })
     }));
@@ -236,7 +233,6 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         item.unit || 'N/A', // Unit
         item.category || 'N/A', // Category
         item.supplier || 'N/A', // Supplier
-        inventoryItem?.unit_price ? `$${inventoryItem.unit_price.toFixed(2)}` : 'N/A', // Unit Price
         item.quantity.toString(), // Quantity
       ];
     });
@@ -244,7 +240,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Add table
     (doc as any).autoTable({
       startY: bom.projectId ? 40 : 30, // Adjust startY based on whether Project ID is present
-      head: [['Item No.', 'Item', 'Description', 'Unit', 'Category', 'Supplier', 'Unit Price', 'Quantity']],
+      head: [['Item No.', 'Item', 'Description', 'Unit', 'Category', 'Supplier', 'Quantity']],
       body: tableData,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak' },
@@ -256,8 +252,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         3: { cellWidth: 15 }, // Unit
         4: { cellWidth: 'auto' }, // Category
         5: { cellWidth: 'auto' }, // Supplier
-        6: { cellWidth: 20 }, // Unit Price
-        7: { cellWidth: 20 }, // Quantity
+        6: { cellWidth: 20 }, // Quantity
       }
     });
 
@@ -276,7 +271,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('BOM not found');
     }
 
-    let csvContent = 'Item No.,Item,Description,Unit,Category,Supplier,Unit Price,Quantity\n'; // CSV Headers
+    let csvContent = 'Item No.,Item,Description,Unit,Category,Supplier,Quantity\n'; // CSV Headers
 
     bom.items.forEach((item, index) => {
       const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
@@ -286,9 +281,8 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const unit = item.unit || 'N/A';
       const category = item.category || 'N/A';
       const supplier = item.supplier || 'N/A';
-      const unitPrice = inventoryItem?.unit_price ? `$${inventoryItem.unit_price.toFixed(2)}` : 'N/A';
       const quantity = item.quantity.toString();
-      csvContent += `"${itemNo}","${itemName}","${description}","${unit}","${category}","${supplier}","${unitPrice}","${quantity}"\n`;
+      csvContent += `"${itemNo}","${itemName}","${description}","${unit}","${category}","${supplier}","${quantity}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -306,12 +300,13 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [getBOMById, inventoryItems, showNotification]);
 
   const importBOMToCostEstimation = useCallback(async (id: string) => {
-    // This is a placeholder - you'll need to implement the actual import logic
-    // based on your cost estimation feature requirements
     const bomToImport = getBOMById(id);
-    if (!bomToImport) return;
+    if (!bomToImport) {
+      showNotification({ type: 'error', message: 'BOM not found for import' });
+      return null; // Return null if BOM not found
+    }
 
-    // Map BOM items to CostEstimation items structure if needed for the other component
+    // Map BOM items to CostEstimation items structure
     const costEstimationItems = bomToImport.items.map(item => {
         const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
         return {
@@ -319,19 +314,18 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             itemId: item.inventoryitemid,
             name: inventoryItem?.product_name || 'Unknown Item',
             description: inventoryItem?.description || '',
-            unitPrice: inventoryItem?.unit_price || 0,
+            unit_price: inventoryItem?.unit_price || 0,
             quantity: item.quantity,
             total: (inventoryItem?.unit_price || 0) * item.quantity,
         };
     });
 
-    // Example: Navigate to cost estimation page with imported data
-    // navigate('/cost-estimation', { state: { importedBOM: bomToImport, importedItems: costEstimationItems } });
-
     showNotification({
       type: 'info',
-      message: 'BOM imported to Cost Estimation (feature needs full implementation)'
+      message: 'BOM items prepared for Cost Estimation'
     });
+
+    return { importedBOM: bomToImport, importedItems: costEstimationItems }; // Return the data
   }, [getBOMById, inventoryItems, showNotification]);
 
   const contextValue = useMemo(
