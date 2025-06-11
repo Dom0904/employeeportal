@@ -5,6 +5,7 @@ import { BOMProvider } from '../contexts/BOMContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import { JobProvider } from '../contexts/JobContext';
 import { LeaveProvider } from '../contexts/LeaveContext';
+import { ProjectProvider } from '../contexts/ProjectContext';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '../theme';
@@ -26,13 +27,15 @@ export default function App({ Component, pageProps }: AppProps) {
             <LeaveProvider>
               <InventoryProvider>
                 <BOMProvider>
-                  {isNoLayout ? (
-                    <Component {...pageProps} />
-                  ) : (
-                    <Layout>
+                  <ProjectProvider>
+                    {isNoLayout ? (
                       <Component {...pageProps} />
-                    </Layout>
-                  )}
+                    ) : (
+                      <Layout>
+                        <Component {...pageProps} />
+                      </Layout>
+                    )}
+                  </ProjectProvider>
                 </BOMProvider>
               </InventoryProvider>
             </LeaveProvider>

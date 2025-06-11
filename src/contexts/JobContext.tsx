@@ -3,34 +3,17 @@ import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
 import { supabase } from '../supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-
-export interface Job {
-  id: string;
-  title: string;
-  description: string;
-  natureOfWork: string;
-  jobOrderNumber: string;
-  siteAddress: string;
-  timeStart: string;
-  timeEnd: string;
-  supervisorId: string;
-  personnelIds: string[];
-  driverId: string;
-  status: 'pending' | 'acknowledged' | 'in-progress' | 'completed' | 'cancelled';
-  acknowledgedBy: string[];
-  createdAt: string;
-  updatedAt: string;
-  color?: string;
-}
+import type { Job } from '../types/Job';
 
 interface JobContextType {
   jobs: Job[];
-  assignJob: (jobData: Omit<Job, 'id' | 'status' | 'acknowledgedBy' | 'createdAt' | 'updatedAt'>) => Promise<Job>;
+  assignJob: (jobData: Omit<Job, 'id' | 'status' | 'acknowledged_at' | 'created_at' | 'updated_at'>) => Promise<Job>;
   acknowledgeJob: (jobId: string, userId: string) => void;
   updateJobStatus: (jobId: string, status: Job['status']) => void;
   getJobsByUser: (userId: string) => Job[];
   getJobById: (jobId: string) => Job | undefined;
   getJobsByDateRange: (startDate: Date, endDate: Date) => Job[];
+  getJobsByProject: (projectId: string) => Job[];
 }
 
 const JobContext = createContext<JobContextType | undefined>(undefined);
@@ -58,7 +41,11 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Fetch jobs from Supabase on mount
   useEffect(() => {
     const fetchJobs = async () => {
-      const { data, error } = await supabase.from('jobs').select('*');
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
       if (error) {
         showNotification({ type: 'error', message: 'Failed to fetch jobs' });
         return;
@@ -68,24 +55,36 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     fetchJobs();
   }, [showNotification]);
 
-  const assignJob = useCallback(async (jobData: Omit<Job, 'id' | 'status' | 'acknowledgedBy' | 'createdAt' | 'updatedAt'>) => {
+  const assignJob = useCallback(async (jobData: Omit<Job, 'id' | 'status' | 'acknowledged_at' | 'created_at' | 'updated_at'>) => {
     const newJob: Job = {
       ...jobData,
       id: uuidv4(),
       status: 'pending',
-      acknowledgedBy: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      acknowledged_at: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       color: getRandomColor(),
+      project_id: jobData.project_id || null,
+      description: jobData.description || '',
+      nature_of_work: jobData.nature_of_work,
+      job_order_number: jobData.job_order_number,
+      site_address: jobData.site_address,
+      time_start: jobData.time_start,
+      time_end: jobData.time_end,
+      supervisor_id: jobData.supervisor_id,
+      personnel_ids: jobData.personnel_ids,
+      driver_id: jobData.driver_id
     };
+
     const { error } = await supabase.from('jobs').insert([newJob]);
     if (error) {
+      console.error('Error inserting job:', error);
       showNotification({ type: 'error', message: 'Failed to assign job' });
       throw error;
     }
     setJobs(prevJobs => [newJob, ...prevJobs]);
     // Notify assigned personnel
-    jobData.personnelIds.forEach(personId => {
+    jobData.personnel_ids.forEach(personId => {
       showNotification({
         message: `New job assigned: ${newJob.title}`,
         type: 'info',
@@ -94,7 +93,7 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
     });
     // Notify the driver if assigned
-    if (jobData.driverId) {
+    if (jobData.driver_id) {
       showNotification({
         message: `You have been assigned as driver for job: ${newJob.title}`,
         type: 'info',
@@ -107,42 +106,40 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const acknowledgeJob = useCallback(async (jobId: string, userId: string) => {
     const job = jobs.find((j: Job) => j.id === jobId);
-    if (!job || job.acknowledgedBy.includes(userId)) return;
-    const updatedAcknowledgedBy = [...job.acknowledgedBy, userId];
-    const allPersonnelAcknowledged = job.personnelIds.every((id: string) => updatedAcknowledgedBy.includes(id));
-    const updatedJob = {
+    if (!job || job.acknowledged_at) return;
+
+    const updatedJob: Job = {
       ...job,
-      acknowledgedBy: updatedAcknowledgedBy,
-      status: allPersonnelAcknowledged ? 'acknowledged' : job.status,
-      updatedAt: new Date().toISOString(),
+      acknowledged_at: new Date().toISOString(),
+      status: 'acknowledged',
+      updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from('jobs').update({
-      acknowledgedBy: updatedAcknowledgedBy,
+      acknowledged_at: updatedJob.acknowledged_at,
       status: updatedJob.status,
-      updatedAt: updatedJob.updatedAt,
+      updated_at: updatedJob.updated_at,
     }).eq('id', jobId);
     if (error) {
       showNotification({ type: 'error', message: 'Failed to acknowledge job' });
       return;
     }
     setJobs(prevJobs => prevJobs.map((j: Job) => j.id === jobId ? updatedJob : j));
-    if (allPersonnelAcknowledged) {
-      showNotification({
-        message: `All personnel have acknowledged job: ${job.title}`,
-        type: 'success',
-        link: `/job-schedule?jobId=${jobId}`,
-        metadata: { jobId, type: 'job_acknowledged' }
-      });
-    }
+    
+    showNotification({
+      message: `Job acknowledged successfully: ${job.title}`,
+      type: 'success',
+      link: `/job-schedule?jobId=${jobId}`,
+      metadata: { jobId, type: 'job_acknowledged' }
+    });
   }, [jobs, showNotification]);
 
   const updateJobStatus = useCallback(async (jobId: string, status: Job['status']) => {
     const job = jobs.find((j: Job) => j.id === jobId);
     if (!job) return;
-    const updatedJob = { ...job, status, updatedAt: new Date().toISOString() };
+    const updatedJob = { ...job, status, updated_at: new Date().toISOString() };
     const { error } = await supabase.from('jobs').update({
       status,
-      updatedAt: updatedJob.updatedAt,
+      updated_at: updatedJob.updated_at,
     }).eq('id', jobId);
     if (error) {
       showNotification({ type: 'error', message: 'Failed to update job status' });
@@ -153,9 +150,9 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const getJobsByUser = useCallback((userId: string) => {
     return jobs.filter(job => 
-      job.personnelIds.includes(userId) || 
-      job.driverId === userId || 
-      job.supervisorId === userId
+      job.personnel_ids.includes(userId) || 
+      job.driver_id === userId ||
+      job.supervisor_id === userId
     );
   }, [jobs]);
 
@@ -165,14 +162,18 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const getJobsByDateRange = useCallback((startDate: Date, endDate: Date) => {
     return jobs.filter(job => {
-      const jobStart = new Date(job.timeStart);
-      const jobEnd = new Date(job.timeEnd);
+      const jobStart = new Date(job.time_start);
+      const jobEnd = new Date(job.time_end);
       return (
         (jobStart >= startDate && jobStart <= endDate) ||
         (jobEnd >= startDate && jobEnd <= endDate) ||
         (jobStart <= startDate && jobEnd >= endDate)
       );
     });
+  }, [jobs]);
+
+  const getJobsByProject = useCallback((projectId: string) => {
+    return jobs.filter(job => job.project_id === projectId);
   }, [jobs]);
 
   return (
@@ -185,6 +186,7 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         getJobsByUser,
         getJobById,
         getJobsByDateRange,
+        getJobsByProject,
       }}
     >
       {children}

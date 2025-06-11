@@ -148,6 +148,9 @@ const navigationGroups = [
 // Dashboard is kept separate as it's not part of any group
 const dashboardItem = { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] };
 
+// New top-level item for Project Management
+const projectManagementItem = { text: 'Project Management', icon: <AssignmentIcon />, path: '/projects', roles: [UserRole.ADMIN, UserRole.MANAGER] };
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -342,34 +345,55 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <List>
           {/* Dashboard item */}
           {showDashboard && (
-            <ListItem disablePadding>
-              <ListItemButton 
-                selected={router.pathname === dashboardItem.path}
+            <ListItem disablePadding sx={{ display: 'block' }}>
+              <ListItemButton
                 onClick={() => handleNavigation(dashboardItem.path)}
                 sx={{
-                  '&.Mui-selected': {
-                    backgroundColor: 'primary.light',
-                    color: 'white',
-                    '& .MuiListItemIcon-root': {
-                      color: 'white',
-                    },
-                  },
-                  '&.Mui-selected:hover': {
-                    backgroundColor: 'primary.main',
-                  },
+                  minHeight: 48,
+                  justifyContent: open ? 'initial' : 'center',
+                  px: 2.5,
                 }}
               >
-                <ListItemIcon sx={{ 
-                  color: router.pathname === dashboardItem.path ? 'white' : 'primary.main' 
-                }}>
+                <ListItemIcon
+                  sx={{
+                    minWidth: 0,
+                    mr: open ? 3 : 'auto',
+                    justifyContent: 'center',
+                  }}
+                >
                   {dashboardItem.icon}
                 </ListItemIcon>
-                <ListItemText primary={dashboardItem.text} />
+                <ListItemText primary={dashboardItem.text} sx={{ opacity: open ? 1 : 0 }} />
               </ListItemButton>
             </ListItem>
           )}
 
-          <Divider sx={{ my: 1 }} />
+          {/* Project Management - Top Level */}
+          {user && projectManagementItem.roles.includes(user.role) && (
+            <ListItem disablePadding sx={{ display: 'block' }}>
+              <ListItemButton
+                onClick={() => handleNavigation(projectManagementItem.path)}
+                sx={{
+                  minHeight: 48,
+                  justifyContent: open ? 'initial' : 'center',
+                  px: 2.5,
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 0,
+                    mr: open ? 3 : 'auto',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {projectManagementItem.icon}
+                </ListItemIcon>
+                <ListItemText primary={projectManagementItem.text} sx={{ opacity: open ? 1 : 0 }} />
+              </ListItemButton>
+            </ListItem>
+          )}
+
+          <Divider />
 
           {/* Navigation groups */}
           {filteredNavigationGroups.map((group) => (

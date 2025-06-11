@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -14,54 +14,64 @@ import {
   Alert,
   SelectChangeEvent,
   Checkbox,
-  ListItemText
+  ListItemText,
+  useTheme,
+  Chip
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { useJobs } from '../contexts/JobContext';
+import { useProject } from '../contexts/ProjectContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import type { Job } from '../contexts/JobContext';
+import { useRouter } from 'next/router';
+import type { Job } from '../types/Job';
+import type { User } from '../contexts/AuthContext';
 
-// Mock data for users (to be replaced with real user data)
-const users = [
-  { id: '1', name: 'Alice', role: 'regular', position: 'Technician' },
-  { id: '2', name: 'Bob', role: 'regular', position: 'Driver' },
-  { id: '3', name: 'Carol', role: 'regular', position: 'Driver' },
-  { id: '4', name: 'Dave', role: 'manager', position: 'Manager' },
-  { id: '5', name: 'Eve', role: 'admin', position: 'Admin' },
-];
+// Remove mock data for users
+// const users = [
+//   { id: '1', name: 'Alice', role: 'regular', position: 'Technician' },
+//   { id: '2', name: 'Bob', role: 'regular', position: 'Driver' },
+//   { id: '3', name: 'Carol', role: 'regular', position: 'Driver' },
+//   { id: '4', name: 'Dave', role: 'manager', position: 'Manager' },
+//   { id: '5', name: 'Eve', role: 'admin', position: 'Admin' },
+// ];
 
-const drivers = users.filter(u => u.position === 'Driver');
-const managers = users.filter(u => u.position === 'Manager' || u.role === 'admin');
-const personnel = users.filter(u => u.position !== 'Driver' && u.position !== 'Manager' && u.role !== 'admin');
+// const drivers = users.filter(u => u.position === 'Driver');
+// const managers = users.filter(u => u.position === 'Manager' || u.role === 'admin');
+// const personnel = users.filter(u => u.position !== 'Driver' && u.position !== 'Manager' && u.role !== 'admin');
 
 interface FormData {
   title: string;
-  natureOfWork: string;
-  jobOrderNumber: string;
-  siteAddress: string;
-  timeStart: string;
-  timeEnd: string;
-  supervisorId: string;
-  personnelIds: string[];
-  driverId: string;
+  nature_of_work: string;
+  job_order_number: string;
+  site_address: string;
+  time_start: string;
+  time_end: string;
+  supervisor_id: string;
+  personnel_ids: string[];
+  driver_id: string | null;
+  project_id: string | null;
 }
 
 const initialFormData: FormData = {
   title: '',
-  natureOfWork: '',
-  jobOrderNumber: '',
-  siteAddress: '',
-  timeStart: '',
-  timeEnd: '',
-  supervisorId: '',
-  personnelIds: [],
-  driverId: ''
+  nature_of_work: '',
+  job_order_number: '',
+  site_address: '',
+  time_start: '',
+  time_end: '',
+  supervisor_id: '',
+  personnel_ids: [],
+  driver_id: null,
+  project_id: null
 };
 
 const JobAssignments: React.FC = () => {
-  const { user } = useAuth();
+  const { user, getAllUsers } = useAuth();
   const { assignJob, jobs } = useJobs();
+  const { projects } = useProject();
   const { showNotification } = useNotifications();
+  const router = useRouter();
+  const theme = useTheme();
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [snackbar, setSnackbar] = useState({
@@ -69,6 +79,28 @@ const JobAssignments: React.FC = () => {
     message: '',
     severity: 'success' as 'success' | 'error'
   });
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const fetchedUsers = await getAllUsers();
+      setAllUsers(fetchedUsers);
+    };
+    fetchUsers();
+  }, [getAllUsers]);
+
+  // Filter users based on their roles/positions (assuming we fetch positions from profiles table)
+  const drivers = allUsers.filter(u => u.position === 'Driver');
+  const managers = allUsers.filter(u => u.role === 'manager' || u.role === 'admin');
+  const personnel = allUsers.filter(u => u.position !== 'Driver' && u.role !== 'manager' && u.role !== 'admin');
+
+  // Get project ID from URL if present
+  useEffect(() => {
+    const projectId = router.query.projectId as string;
+    if (projectId) {
+      setFormData(prev => ({ ...prev, project_id: projectId }));
+    }
+  }, [router.query.projectId]);
 
   // Only allow managers, supervisors, or admins
   const allowedRoles = ['manager', 'supervisor', 'admin'];
@@ -79,9 +111,9 @@ const JobAssignments: React.FC = () => {
     const s = new Date(start).getTime();
     const e = new Date(end).getTime();
     return jobs.some(job => {
-      if (job.driverId !== driverId) return false;
-      const js = new Date(job.timeStart).getTime();
-      const je = new Date(job.timeEnd).getTime();
+      if (job.driver_id !== driverId) return false;
+      const js = new Date(job.time_start).getTime();
+      const je = new Date(job.time_end).getTime();
       // Overlap check
       return (s < je && e > js);
     });
@@ -99,9 +131,13 @@ const JobAssignments: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (e: SelectChangeEvent<string>) => {
+  const handleSelectChange = (e: SelectChangeEvent<string | string[]>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'personnel_ids') {
+      setFormData(prev => ({ ...prev, [name]: value as string[] }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value as string }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -116,8 +152,8 @@ const JobAssignments: React.FC = () => {
       return;
     }
 
-    // Prevent driver double-booking
-    if (isDriverBooked(formData.driverId, formData.timeStart, formData.timeEnd)) {
+    // Prevent driver double-booking only if a driver is selected
+    if (formData.driver_id && isDriverBooked(formData.driver_id, formData.time_start, formData.time_end)) {
       setSnackbar({
         open: true,
         message: 'Driver is already booked for this time slot.',
@@ -127,18 +163,18 @@ const JobAssignments: React.FC = () => {
     }
 
     try {
-      const newJob: Omit<Job, 'id' | 'status' | 'acknowledgedBy' | 'createdAt' | 'updatedAt'> = {
+      const newJob: Omit<Job, 'id' | 'status' | 'acknowledged_at' | 'created_at' | 'updated_at'> = {
         ...formData,
-        description: formData.natureOfWork || '', // fallback if natureOfWork is missing
+        description: formData.nature_of_work || '', // fallback if nature_of_work is missing
       };
 
-      const jobId = await assignJob(newJob);
+      const job = await assignJob(newJob);
       
       showNotification({
         message: `Job assigned successfully: ${formData.title}`,
         type: 'success',
-        link: `/jobs/${jobId}`,
-        metadata: { jobId, type: 'job_assigned' }
+        link: `/jobs/${job.id}`,
+        metadata: { jobId: job.id, type: 'job_assigned' }
       });
 
       setFormData(initialFormData);
@@ -147,6 +183,11 @@ const JobAssignments: React.FC = () => {
         message: 'Job assigned successfully',
         severity: 'success'
       });
+
+      // If we came from a project page, go back there
+      if (router.query.projectId) {
+        router.push('/projects');
+      }
     } catch (error) {
       setSnackbar({
         open: true,
@@ -175,6 +216,28 @@ const JobAssignments: React.FC = () => {
 
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
+            {/* Project Selection */}
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Project (Optional)</InputLabel>
+                <Select
+                  name="project_id"
+                  value={formData.project_id || ''}
+                  onChange={handleSelectChange}
+                  label="Project (Optional)"
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {projects.map(project => (
+                    <MenuItem key={project.id} value={project.id}>
+                      {project.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -189,8 +252,8 @@ const JobAssignments: React.FC = () => {
               <TextField
                 fullWidth
                 label="Nature of Work"
-                name="natureOfWork"
-                value={formData.natureOfWork}
+                name="nature_of_work"
+                value={formData.nature_of_work}
                 onChange={handleInputChange}
                 required
               />
@@ -199,8 +262,8 @@ const JobAssignments: React.FC = () => {
               <TextField
                 fullWidth
                 label="Job Order Number"
-                name="jobOrderNumber"
-                value={formData.jobOrderNumber}
+                name="job_order_number"
+                value={formData.job_order_number}
                 onChange={handleInputChange}
                 required
               />
@@ -209,8 +272,8 @@ const JobAssignments: React.FC = () => {
               <TextField
                 fullWidth
                 label="Site Address"
-                name="siteAddress"
-                value={formData.siteAddress}
+                name="site_address"
+                value={formData.site_address}
                 onChange={handleInputChange}
                 required
               />
@@ -218,87 +281,110 @@ const JobAssignments: React.FC = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                type="datetime-local"
                 label="Start Time"
-                name="timeStart"
-                value={formData.timeStart}
+                name="time_start"
+                type="datetime-local"
+                value={formData.time_start}
                 onChange={handleInputChange}
-                InputLabelProps={{ shrink: true }}
                 required
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                type="datetime-local"
                 label="End Time"
-                name="timeEnd"
-                value={formData.timeEnd}
+                name="time_end"
+                type="datetime-local"
+                value={formData.time_end}
                 onChange={handleInputChange}
-                InputLabelProps={{ shrink: true }}
                 required
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Supervisor/Manager</InputLabel>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Supervisor</InputLabel>
                 <Select
-                  name="supervisorId"
-                  value={formData.supervisorId}
+                  name="supervisor_id"
+                  value={formData.supervisor_id}
                   onChange={handleSelectChange}
-                  label="Supervisor/Manager"
+                  label="Supervisor"
+                  required
                 >
-                  <MenuItem value="">Select Supervisor/Manager</MenuItem>
-                  {managers.map(m => (
-                    <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Personnel</InputLabel>
-                <Select
-                  name="personnelIds"
-                  multiple
-                  value={formData.personnelIds}
-                  onChange={e => setFormData(prev => ({ ...prev, personnelIds: typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value }))}
-                  renderValue={selected => (selected as string[]).map(id => users.find(u => u.id === id)?.name).join(', ')}
-                  label="Personnel"
-                >
-                  {personnel.map(p => (
-                    <MenuItem key={p.id} value={p.id}>
-                      <Checkbox checked={formData.personnelIds.indexOf(p.id) > -1} />
-                      <ListItemText primary={p.name} />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Assigned Driver</InputLabel>
-                <Select
-                  name="driverId"
-                  value={formData.driverId}
-                  onChange={handleSelectChange}
-                  label="Assigned Driver"
-                >
-                  <MenuItem value="">Select Driver</MenuItem>
-                  {drivers.map(d => (
-                    <MenuItem key={d.id} value={d.id} disabled={isDriverBooked(d.id, formData.timeStart, formData.timeEnd)}>
-                      {d.name} {isDriverBooked(d.id, formData.timeStart, formData.timeEnd) ? '(Booked)' : ''}
+                  {managers.map(manager => (
+                    <MenuItem key={manager.id} value={manager.id}>
+                      {manager.name}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12}>
-              <Button type="submit" variant="contained" color="primary" disabled={isDriverBooked(formData.driverId, formData.timeStart, formData.timeEnd)}>
-                Assign Job
-              </Button>
+              <FormControl fullWidth>
+                <InputLabel>Personnel</InputLabel>
+                <Select
+                  multiple
+                  name="personnel_ids"
+                  value={formData.personnel_ids}
+                  onChange={handleSelectChange}
+                  label="Personnel"
+                  required
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {(selected as string[]).map((value) => {
+                        const person = personnel.find(p => p.id === value);
+                        return <Chip key={value} label={person?.name || value} />;
+                      })}
+                    </Box>
+                  )}
+                >
+                  {personnel.map((person) => (
+                    <MenuItem key={person.id} value={person.id}>
+                      <Checkbox checked={formData.personnel_ids.includes(person.id)} />
+                      <ListItemText primary={person.name} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Driver (Optional)</InputLabel>
+                <Select
+                  name="driver_id"
+                  value={formData.driver_id || ''}
+                  onChange={handleSelectChange}
+                  label="Driver (Optional)"
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {drivers.map(driver => (
+                    <MenuItem key={driver.id} value={driver.id}>
+                      {driver.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
           </Grid>
+
+          <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+            <Button
+              variant="outlined"
+              onClick={() => router.back()}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+            >
+              Assign Job
+            </Button>
+          </Box>
         </form>
       </Paper>
 
@@ -307,8 +393,8 @@ const JobAssignments: React.FC = () => {
         autoHideDuration={6000}
         onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
       >
-        <Alert
-          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
           severity={snackbar.severity}
           sx={{ width: '100%' }}
         >

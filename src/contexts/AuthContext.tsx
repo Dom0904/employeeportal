@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
 // Define user roles
@@ -29,6 +29,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   updateUserProfile: (updatedUser: User) => void;
   verifyPassword: (password: string) => Promise<boolean>;
+  getAllUsers: () => Promise<User[]>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -156,6 +157,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Password verification is not needed; handled by Supabase Auth
   const verifyPassword = async (_password: string) => true;
 
+  // Get all users
+  const getAllUsers = useCallback(async (): Promise<User[]> => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('id, name, id_number, role, position');
+      if (error) {
+        console.error('Error fetching all users:', error);
+        return [];
+      }
+      return data.map(profile => ({
+        id: profile.id,
+        name: profile.name,
+        id_number: profile.id_number || '',
+        role: profile.role as UserRole,
+        email: '',
+        phoneNumber: '',
+        position: profile.position || '',
+      }));
+    } catch (error) {
+      console.error('Unexpected error fetching all users:', error);
+      return [];
+    }
+  }, []);
+
   // On mount, get current session and profile
   useEffect(() => {
     const getSession = async () => {
@@ -214,6 +238,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       verifyPassword,
       // Optionally expose register
       register,
+      getAllUsers,
     }}>
       {children}
     </AuthContext.Provider>

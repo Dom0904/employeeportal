@@ -2,18 +2,19 @@ export interface Job {
   id: string;
   title: string;
   description: string;
-  natureOfWork: string;
-  jobOrderNumber: string;
-  siteAddress: string;
-  timeStart: string;
-  timeEnd: string;
-  supervisorId: string;
-  personnelIds: string[];
-  driverId: string;
+  nature_of_work: string;
+  job_order_number: string;
+  site_address: string;
+  time_start: string;
+  time_end: string;
+  supervisor_id: string;
+  personnel_ids: string[];
+  driver_id: string | null;
+  project_id: string | null;
   status: 'pending' | 'acknowledged' | 'in-progress' | 'completed' | 'cancelled';
-  acknowledgedBy: string[];
-  createdAt: string;
-  updatedAt: string;
+  acknowledged_at: string | null;
+  created_at: string;
+  updated_at: string;
   color?: string;
 }
 
