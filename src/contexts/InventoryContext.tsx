@@ -35,7 +35,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const fetchItems = async () => {
       const { data, error } = await supabase
         .from('inventory')
-        .select('*');  // Select all columns to avoid any naming mismatches
+        .select('*, unit, category, supplier');  // Select all columns to avoid any naming mismatches
       if (error) {
         showNotification({ type: 'error', message: 'Failed to fetch inventory' });
       } else if (data) {
@@ -47,6 +47,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           description: item.description,
           unit_price: item.unit_price,
           quantity: item.quantity,
+          unit: item.unit,
+          category: item.category,
+          supplier: item.supplier,
           status: item.status,
           last_updated: item.last_updated,
           updated_by: item.updated_by,
@@ -83,6 +86,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         description: newItem.description,
         unit_price: newItem.unit_price,
         quantity: newItem.quantity,
+        unit: newItem.unit || null, // Add unit, default to null if not provided
+        category: newItem.category || null, // Add category, default to null if not provided
+        supplier: newItem.supplier || null, // Add supplier, default to null if not provided
         status: determineInventoryStatus(newItem.quantity),
         last_updated: new Date().toISOString(),
         updated_by: session.user.id, // Use the auth user ID instead of profile ID
@@ -144,6 +150,17 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // If quantity is being updated, recalculate status
     if (updates.quantity !== undefined) {
       updatesToApply.status = determineInventoryStatus(updates.quantity);
+    }
+
+    // Handle optional fields for updates
+    if (updates.unit !== undefined) {
+        updatesToApply.unit = updates.unit;
+    }
+    if (updates.category !== undefined) {
+        updatesToApply.category = updates.category;
+    }
+    if (updates.supplier !== undefined) {
+        updatesToApply.supplier = updates.supplier;
     }
 
     // Map unit_price if present in updates (no longer need to map from unitPrice)

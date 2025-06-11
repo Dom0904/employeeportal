@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   Box,
   Button,
@@ -37,16 +37,23 @@ import { useAuth } from '../contexts/AuthContext';
 import { useBOM } from '../contexts/BOMContext';
 import { useInventory } from '../contexts/InventoryContext';
 import { UserRole } from '../contexts/AuthContext';
+import { BOMItem } from '../types/BOM';
+import { InventoryItem } from '../types/Inventory';
+
+interface SelectedBOMItem extends BOMItem {
+  inventoryDetails?: InventoryItem;
+}
 
 const CATEGORIES = [
-  'Electrical',
-  'Mechanical',
-  'HVAC',
-  'Sanitary',
-  'Trading Goods',
+  'Raw Materials',
+  'Components',
   'Finished Goods',
-  'Fabricated',
-  'AUX Electronics',
+  'Electronics',
+  'Mechanical',
+  'Electrical',
+  'Plumbing',
+  'HVAC',
+  'Other'
 ];
 
 const UNITS = [
@@ -82,37 +89,9 @@ const BillOfMaterial = () => {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [author, setAuthor] = useState('');
-  const [selectedItems, setSelectedItems] = useState<Array<{
-    item: any;
-    quantity: number;
-  }>>([]);
+  const [selectedItems, setSelectedItems] = useState<SelectedBOMItem[]>([]);
   const [drawerWidth, setDrawerWidth] = useState(800);
   const drawerRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    document.addEventListener('mouseup', handleMouseUp, true);
-    document.addEventListener('mousemove', handleMouseMove, true);
-  }, []);
-
-  const handleMouseUp = useCallback(() => {
-    document.removeEventListener('mouseup', handleMouseUp, true);
-    document.removeEventListener('mousemove', handleMouseMove, true);
-  }, []);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (drawerRef.current) {
-      let newWidth = e.clientX;
-      setDrawerWidth(Math.max(300, Math.min(newWidth, window.innerWidth * 0.9)));
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      document.removeEventListener('mouseup', handleMouseUp, true);
-      document.removeEventListener('mousemove', handleMouseMove, true);
-    };
-  }, [handleMouseMove, handleMouseUp]);
 
   const handleOpen = (bom?: any) => {
     if (bom) {
@@ -121,9 +100,9 @@ const BillOfMaterial = () => {
       setDescription(bom.description || '');
       setCategory(bom.category || '');
       setAuthor(bom.author || '');
-      setSelectedItems(bom.items.map((item: any) => ({
-        item: inventoryItems.find(i => i.id === item.inventoryitemid),
-        quantity: item.quantity,
+      setSelectedItems(bom.items.map((bomItem: BOMItem) => ({
+        ...bomItem,
+        inventoryDetails: inventoryItems.find(invItem => invItem.id === bomItem.inventoryitemid),
       })));
     } else {
       setEditingBOM(null);
@@ -153,10 +132,16 @@ const BillOfMaterial = () => {
       projectId: editingBOM?.projectId,
       category,
       author,
-      items: selectedItems.map(({ item, quantity }) => ({
-        id: crypto.randomUUID(),
-        inventoryitemid: item.id,
-        quantity,
+      items: selectedItems.map((selectedBomItem) => ({
+        id: selectedBomItem.id || crypto.randomUUID(),
+        bom_id: selectedBomItem.bom_id || '',
+        inventoryitemid: selectedBomItem.inventoryitemid,
+        quantity: selectedBomItem.quantity,
+        unit: selectedBomItem.unit,
+        category: selectedBomItem.category,
+        supplier: selectedBomItem.supplier,
+        description: selectedBomItem.description,
+        author: selectedBomItem.author,
       }))
     };
 
@@ -195,6 +180,16 @@ const BillOfMaterial = () => {
       console.error('Error importing BOM to Cost Estimation:', error);
     }
   };
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 2 && drawerRef.current) {
+      e.preventDefault();
+      const rect = drawerRef.current.getBoundingClientRect();
+      if (rect.right < e.clientX || rect.bottom < e.clientY || rect.left > e.clientX || rect.top > e.clientY) {
+        setOpen(false);
+      }
+    }
+  }, []);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -281,27 +276,13 @@ const BillOfMaterial = () => {
       </TableContainer>
 
       <Drawer
-        anchor="left"
         open={open}
         onClose={handleClose}
-        PaperProps={{
-          sx: { width: drawerWidth, position: 'relative' },
-          ref: drawerRef
-        }}
+        anchor="right"
+        ref={drawerRef}
+        onMouseDown={handleMouseDown}
+        PaperProps={{ style: { width: drawerWidth } }}
       >
-        <Box
-          sx={{
-            width: '10px',
-            cursor: 'ew-resize',
-            position: 'absolute',
-            right: 0,
-            top: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.1)',
-            zIndex: 1000,
-          }}
-          onMouseDown={handleMouseDown}
-        />
         <DialogTitle>
           {editingBOM ? 'Edit Bill of Materials' : 'Create New Bill of Materials'}
         </DialogTitle>
@@ -345,8 +326,8 @@ const BillOfMaterial = () => {
                   >
                     {CATEGORIES.map((cat) => (
                       <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-                      ))}
-                    </Select>
+                    ))}
+                  </Select>
                 </FormControl>
               </Grid>
               <Grid item xs={6}>
@@ -381,11 +362,20 @@ const BillOfMaterial = () => {
                           <TableCell sx={{ minWidth: 250 }}>
                             <Autocomplete
                               options={inventoryItems}
-                              getOptionLabel={(option) => option.name}
-                              value={item.item}
+                              getOptionLabel={(option) => option.product_name || ''}
+                              value={item.inventoryDetails || undefined}
                               onChange={(_event, newValue) => {
                                 const updatedItems = [...selectedItems];
-                                updatedItems[index] = { ...item, item: newValue };
+                                updatedItems[index] = {
+                                  ...item,
+                                  inventoryitemid: newValue?.id || '',
+                                  inventoryDetails: newValue || undefined,
+                                  unit: newValue?.unit || '',
+                                  category: newValue?.category || '',
+                                  supplier: newValue?.supplier || '',
+                                  description: newValue?.description || '',
+                                  author: newValue?.updated_by || '',
+                                };
                                 setSelectedItems(updatedItems);
                               }}
                               renderInput={(params) => (
@@ -403,10 +393,10 @@ const BillOfMaterial = () => {
                                 />
                               )}
                             />
-                  </TableCell>
+                          </TableCell>
                           <TableCell sx={{ minWidth: 100 }}>
-                    <TextField
-                      type="number"
+                            <TextField
+                              type="number"
                               value={item.quantity}
                               onChange={(e) => {
                                 const updatedItems = [...selectedItems];
@@ -424,7 +414,7 @@ const BillOfMaterial = () => {
                               <InputLabel id={`unit-select-label-${index}`} sx={{ fontSize: '1.0rem' }}>Unit</InputLabel>
                               <Select
                                 labelId={`unit-select-label-${index}`}
-                                value={item.item?.unit || ''}
+                                value={item.unit || ''}
                                 label="Unit"
                                 disabled
                                 sx={{ fontSize: '1.0rem' }}
@@ -447,7 +437,7 @@ const BillOfMaterial = () => {
                               <InputLabel id={`category-select-label-${index}`} sx={{ fontSize: '1.0rem' }}>Category</InputLabel>
                               <Select
                                 labelId={`category-select-label-${index}`}
-                                value={item.item?.category || ''}
+                                value={item.category || ''}
                                 label="Category"
                                 disabled
                                 sx={{ fontSize: '1.0rem' }}
@@ -467,7 +457,7 @@ const BillOfMaterial = () => {
                           </TableCell>
                           <TableCell sx={{ minWidth: 150 }}>
                             <TextField
-                              value={item.item?.supplier || ''}
+                              value={item.supplier || ''}
                               label="Supplier"
                               fullWidth
                               margin="dense"
@@ -477,61 +467,101 @@ const BillOfMaterial = () => {
                           </TableCell>
                           <TableCell sx={{ minWidth: 300 }}>
                             <TextField
-                              value={item.item?.description || ''}
+                              value={item.description || ''}
                               label="Description"
                               fullWidth
                               margin="dense"
                               InputProps={{ readOnly: true, style: { fontSize: '1.0rem' } }}
                               InputLabelProps={{ style: { fontSize: '1.0rem' } }}
-                    />
-                  </TableCell>
+                            />
+                          </TableCell>
                           <TableCell sx={{ minWidth: 150 }}>
                             <TextField
-                              value={item.item?.updated_by || ''}
+                              value={item.author || ''}
                               label="Author"
                               fullWidth
                               margin="dense"
                               InputProps={{ readOnly: true, style: { fontSize: '1.0rem' } }}
                               InputLabelProps={{ style: { fontSize: '1.0rem' } }}
                             />
-                  </TableCell>
+                          </TableCell>
                           <TableCell sx={{ minWidth: 50 }}>
                             <IconButton
                               onClick={() => {
-                                setSelectedItems(selectedItems.filter((_, i) => i !== index));
+                                const updatedItems = selectedItems.filter((_, i) => i !== index);
+                                setSelectedItems(updatedItems);
                               }}
-                              size="small"
                             >
                               <DeleteIcon />
                             </IconButton>
-              </TableCell>
-            </TableRow>
+                          </TableCell>
+                        </TableRow>
                       ))}
-          </TableBody>
-        </Table>
+                    </TableBody>
+                  </Table>
                 </TableContainer>
                 <Button
-                  startIcon={<AddIcon />}
                   onClick={() => setSelectedItems([...selectedItems, {
-                    item: null,
+                    id: crypto.randomUUID(),
+                    bom_id: '',
+                    inventoryitemid: '',
                     quantity: 1,
+                    unit: '',
+                    category: '',
+                    supplier: '',
+                    description: '',
+                    author: '',
+                    inventoryDetails: undefined,
                   }])}
+                  startIcon={<AddIcon />}
                 >
                   Add Item
                 </Button>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Autocomplete
+                  options={CATEGORIES}
+                  value={category}
+                  onChange={(_event, newValue) => setCategory(newValue || '')}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      margin="dense"
+                      label="Category"
+                      variant="outlined"
+                      fullWidth
+                      inputProps={{
+                        ...params.inputProps,
+                        style: { fontSize: '1.1rem' }
+                      }}
+                      InputLabelProps={{ style: { fontSize: '1.1rem' } }}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  margin="dense"
+                  label="Author"
+                  type="text"
+                  fullWidth
+                  variant="outlined"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  inputProps={{ style: { fontSize: '1.1rem' } }}
+                  InputLabelProps={{ style: { fontSize: '1.1rem' } }}
+                />
               </Grid>
             </Grid>
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave}>
-            Save
-          </Button>
+          <Button onClick={handleSave} variant="contained">Save</Button>
         </DialogActions>
       </Drawer>
     </Box>
   );
 };
 
-export default BillOfMaterial;
+export default BillOfMaterial; 

@@ -44,22 +44,25 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const bomsWithItems = bomList.map((bom: any) => ({
         ...bom,
         projectId: bom.project_id,
-        items: itemList.filter((item: any) => item.bom_id === bom.id).map((item: any) => ({
-            id: item.id,
-            bom_id: item.bom_id,
-            inventoryitemid: item.inventoryitemid,
-            quantity: item.quantity,
-            unit: item.unit,
-            category: item.category,
-            supplier: item.supplier,
-            description: item.description,
-            author: item.author
-        }))
+        items: itemList.filter((item: any) => item.bom_id === bom.id).map((item: any) => {
+            const inventoryItem = inventoryItems.find(invItem => invItem.id === item.inventoryitemid);
+            return {
+                id: item.id,
+                bom_id: item.bom_id,
+                inventoryitemid: item.inventoryitemid,
+                quantity: item.quantity,
+                unit: inventoryItem?.unit || item.unit, // Prefer inventory item's unit, fallback to bom_item's if available
+                category: inventoryItem?.category || item.category, // Prefer inventory item's category, fallback to bom_item's if available
+                supplier: inventoryItem?.supplier || item.supplier, // Prefer inventory item's supplier, fallback to bom_item's if available
+                description: inventoryItem?.description || item.description, // Prefer inventory item's description, fallback to bom_item's if available
+                author: item.author // Author is specific to BOM item
+            }
+        })
       }));
       setBoms(bomsWithItems);
     };
     fetchBOMs();
-  }, [showNotification]);
+  }, [showNotification, inventoryItems]);
 
   const addBOM = useCallback(async (
     newBom: Omit<BOM, 'id' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'> & { items: BOMItem[] }
@@ -167,24 +170,27 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const { data: itemData } = await supabase.from('bom_items').select('id, bom_id, inventoryitemid, quantity, unit, category, supplier, description, author');
     const bomsWithItems = (bomData ?? []).map((bom: any) => ({
       ...bom,
-      items: (itemData ?? []).filter((item: any) => item.bom_id === bom.id).map((item: any) => ({
-          id: item.id,
-          bom_id: item.bom_id,
-          inventoryitemid: item.inventoryitemid,
-          quantity: item.quantity,
-          unit: item.unit,
-          category: item.category,
-          supplier: item.supplier,
-          description: item.description,
-          author: item.author
-      }))
+      items: (itemData ?? []).filter((item: any) => item.bom_id === bom.id).map((item: any) => {
+          const inventoryItem = inventoryItems.find(invItem => invItem.id === item.inventoryitemid);
+          return {
+              id: item.id,
+              bom_id: item.bom_id,
+              inventoryitemid: item.inventoryitemid,
+              quantity: item.quantity,
+              unit: inventoryItem?.unit || item.unit,
+              category: inventoryItem?.category || item.category,
+              supplier: inventoryItem?.supplier || item.supplier,
+              description: inventoryItem?.description || item.description,
+              author: item.author
+          }
+      })
     }));
     setBoms(bomsWithItems);
     showNotification({
       type: 'success',
       message: 'Bill of Materials updated successfully'
     });
-  }, [user, showNotification]);
+  }, [user, showNotification, inventoryItems]);
 
   const deleteBOM = useCallback(async (id: string) => {
     // Delete BOM (cascade deletes items)
@@ -226,6 +232,11 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [
         (index + 1).toString(), // Item No.
         inventoryItem?.product_name || 'N/A', // Item
+        item.description || 'N/A', // Description
+        item.unit || 'N/A', // Unit
+        item.category || 'N/A', // Category
+        item.supplier || 'N/A', // Supplier
+        inventoryItem?.unit_price ? `$${inventoryItem.unit_price.toFixed(2)}` : 'N/A', // Unit Price
         item.quantity.toString(), // Quantity
       ];
     });
@@ -233,15 +244,20 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Add table
     (doc as any).autoTable({
       startY: bom.projectId ? 40 : 30, // Adjust startY based on whether Project ID is present
-      head: [['Item No.', 'Item', 'Quantity']],
+      head: [['Item No.', 'Item', 'Description', 'Unit', 'Category', 'Supplier', 'Unit Price', 'Quantity']],
       body: tableData,
       theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
+      styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak' },
       headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: 'bold' },
       columnStyles: { // Apply styles to specific columns
-        0: { cellWidth: 20 }, // Item No.
+        0: { cellWidth: 15 }, // Item No.
         1: { cellWidth: 'auto' }, // Item
-        2: { cellWidth: 20 }, // Quantity
+        2: { cellWidth: 'auto' }, // Description
+        3: { cellWidth: 15 }, // Unit
+        4: { cellWidth: 'auto' }, // Category
+        5: { cellWidth: 'auto' }, // Supplier
+        6: { cellWidth: 20 }, // Unit Price
+        7: { cellWidth: 20 }, // Quantity
       }
     });
 
@@ -260,14 +276,19 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('BOM not found');
     }
 
-    let csvContent = 'Item No.,Item,Quantity\n'; // CSV Headers
+    let csvContent = 'Item No.,Item,Description,Unit,Category,Supplier,Unit Price,Quantity\n'; // CSV Headers
 
     bom.items.forEach((item, index) => {
       const inventoryItem = inventoryItems.find(i => i.id === item.inventoryitemid);
       const itemNo = (index + 1).toString();
       const itemName = inventoryItem?.product_name || 'N/A';
+      const description = item.description || 'N/A';
+      const unit = item.unit || 'N/A';
+      const category = item.category || 'N/A';
+      const supplier = item.supplier || 'N/A';
+      const unitPrice = inventoryItem?.unit_price ? `$${inventoryItem.unit_price.toFixed(2)}` : 'N/A';
       const quantity = item.quantity.toString();
-      csvContent += `"${itemNo}","${itemName}","${quantity}"\n`;
+      csvContent += `"${itemNo}","${itemName}","${description}","${unit}","${category}","${supplier}","${unitPrice}","${quantity}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

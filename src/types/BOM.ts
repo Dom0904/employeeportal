@@ -2,14 +2,14 @@ import { InventoryItem } from './Inventory';
 
 export interface BOMItem {
   id: string;
+  bom_id: string;
   inventoryitemid: string;
   quantity: number;
-  unit?: string;
-  category?: string;
-  supplier?: string;
-  description?: string;
-  author?: string;
-  bom_id?: string;
+  unit: string;
+  category: string;
+  supplier: string;
+  description: string;
+  author: string;
 }
 
 export interface BOM {
@@ -17,13 +17,13 @@ export interface BOM {
   title: string;
   description?: string;
   projectId?: string;
+  category: string;
+  author: string;
   items: BOMItem[];
   createdAt: string;
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
-  category?: string;
-  author?: string;
 }
 
 export interface BOMItemWithDetails extends BOMItem {
@@ -36,8 +36,8 @@ export interface BOMWithDetails extends Omit<BOM, 'items'> {
 
 export interface BOMContextType {
   boms: BOM[];
-  addBOM: (bom: Omit<BOM, 'id' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>) => Promise<void>;
-  updateBOM: (id: string, updates: Partial<BOM>) => Promise<void>;
+  addBOM: (bom: Omit<BOM, 'id' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'> & { items: BOMItem[] }) => Promise<void>;
+  updateBOM: (id: string, updates: Partial<BOM> & { items?: BOMItem[] }) => Promise<void>;
   deleteBOM: (id: string) => Promise<void>;
   getBOMById: (id: string) => BOM | undefined;
   exportBOMToPDF: (id: string) => Promise<void>;
