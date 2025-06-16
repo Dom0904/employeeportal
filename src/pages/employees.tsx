@@ -105,9 +105,23 @@ const EmployeeList = () => {
 
   const handleAddEmployee = async () => {
     try {
+      // Validate all required fields
+      if (!newEmployee.name?.trim()) {
+        showSnackbar('Please enter employee name', 'error');
+        return;
+      }
+      if (!newEmployee.id_number?.trim()) {
+        showSnackbar('Please enter ID number', 'error');
+        return;
+      }
+      if (!newEmployee.role) {
+        showSnackbar('Please select a role', 'error');
+        return;
+      }
+
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(newEmployee.email || '')) {
+      if (!newEmployee.email?.trim() || !emailRegex.test(newEmployee.email)) {
         showSnackbar('Please enter a valid email address', 'error');
         return;
       }
