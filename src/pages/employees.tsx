@@ -105,27 +105,35 @@ const EmployeeList = () => {
 
   const handleAddEmployee = async () => {
     try {
-      // First create the auth user
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newEmployee.email,
-        password: newEmployee.id_number, // Using ID number as initial password
-        email_confirm: true,
-        user_metadata: {
-          id_number: newEmployee.id_number,
+      console.log('Attempting to add employee via API route...');
+      const response = await fetch('/api/create-employee-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: newEmployee.email,
+          password: newEmployee.id_number, // Use id_number as initial password
           name: newEmployee.name,
-          role: newEmployee.role
-        }
+          role: newEmployee.role,
+          phoneNumber: newEmployee.phoneNumber,
+          position: newEmployee.position,
+          id_number: newEmployee.id_number,
+        }),
       });
 
-      if (authError) throw authError;
+      const data = await response.json();
 
-      // The profile will be created automatically by the trigger
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create employee');
+      }
+
       showSnackbar('Employee added successfully', 'success');
       handleAddDialogClose();
       fetchEmployees();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding employee:', error);
-      showSnackbar('Failed to add employee', 'error');
+      showSnackbar(error.message || 'Failed to add employee', 'error');
     }
   };
 
