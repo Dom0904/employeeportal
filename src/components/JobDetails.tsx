@@ -58,10 +58,10 @@ const JobDetails: React.FC<JobDetailsProps> = ({
 }) => {
   const { user } = useAuth();
   
-  const startDate = new Date(job.timeStart);
-  const endDate = new Date(job.timeEnd);
-  const isAcknowledged = user && job.acknowledgedBy.includes(user.id);
-  const isAssigned = user && (job.personnelIds.includes(user.id) || job.driverId === user.id);
+  const startDate = new Date(job.timeStart || 0);
+  const endDate = new Date(job.timeEnd || 0);
+  const isAcknowledged = Array.isArray(job.acknowledged_at) && job.acknowledged_at.includes(user?.id || '');
+  const isAssigned = user && ((job.personnelIds ?? []).includes(user.id) || job.driver_id === user.id);
   
   // Determine job status
   const getJobStatus = () => {
@@ -221,9 +221,9 @@ const JobDetails: React.FC<JobDetailsProps> = ({
                 />
                 <CardContent sx={{ p: 2, bgcolor: 'primary.lighter', minHeight: 90, width: '100%', boxSizing: 'border-box' }}>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, width: '100%' }}>
-                    {job.personnelIds.length > 0 ? (
-                      job.personnelIds.map(pid => {
-                        const acknowledged = job.acknowledgedBy.includes(pid);
+                    {(job.personnelIds ?? []).length > 0 ? (
+                      (job.personnelIds ?? []).map(pid => {
+                        const acknowledged = Array.isArray(job.acknowledged_at) && job.acknowledged_at.includes(pid);
                         return (
                           <Chip
                             key={pid}
@@ -265,16 +265,16 @@ const JobDetails: React.FC<JobDetailsProps> = ({
                   }}
                 />
                 <CardContent sx={{ p: 2, bgcolor: 'secondary.lighter', minHeight: 90, width: '100%', boxSizing: 'border-box' }}>
-                  {job.driverId ? (
+                  {job.driver_id ? (
                     <Chip
-                      avatar={<Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main', fontSize: 20 }}>{getInitials(job.driverId)}</Avatar>}
+                      avatar={<Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main', fontSize: 20 }}>{getInitials(job.driver_id)}</Avatar>}
                       label={
                         <span style={{ fontSize: 18, fontWeight: 600, whiteSpace: 'normal', wordBreak: 'break-all', textAlign: 'left', width: '100%', display: 'block' }}>
-                          {job.driverId}
-                          {job.acknowledgedBy.includes(job.driverId) ? ' ✅' : ' ⏳'}
+                          {job.driver_id}
+                          {Array.isArray(job.acknowledged_at) && job.acknowledged_at.includes(job.driver_id) ? ' ✅' : ' ⏳'}
                         </span>
                       }
-                      color={job.acknowledgedBy.includes(job.driverId) ? 'success' : 'warning'}
+                      color={Array.isArray(job.acknowledged_at) && job.acknowledged_at.includes(job.driver_id) ? 'success' : 'warning'}
                       sx={{ height: 48, fontSize: 18, px: 2, py: 1, boxShadow: 2, minWidth: 0, maxWidth: '100%', width: '100%', justifyContent: 'flex-start', '.MuiChip-label': { width: '100%', overflowWrap: 'break-word', whiteSpace: 'normal', textOverflow: 'clip', textAlign: 'left', display: 'block' } }}
                       variant="filled"
                     />
