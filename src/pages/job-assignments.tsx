@@ -18,7 +18,7 @@ import {
   useTheme,
   Chip
 } from '@mui/material';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, UserRole } from '../contexts/AuthContext';
 import { useJobs } from '../contexts/JobContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -89,10 +89,10 @@ const JobAssignments: React.FC = () => {
     fetchUsers();
   }, [getAllUsers]);
 
-  // Filter users based on their roles/positions (assuming we fetch positions from profiles table)
+  // Filter users based on their roles/positions
   const drivers = allUsers.filter(u => u.position === 'Driver');
-  const managers = allUsers.filter(u => u.role === 'manager' || u.role === 'admin');
-  const personnel = allUsers.filter(u => u.position !== 'Driver' && u.role !== 'manager' && u.role !== 'admin');
+  const managers = allUsers.filter(u => u.role === UserRole.MANAGER || u.role === UserRole.ADMIN);
+  const personnel = allUsers.filter(u => u.position !== 'Driver' && u.role !== UserRole.MANAGER && u.role !== UserRole.ADMIN);
 
   // Get project ID from URL if present
   useEffect(() => {
@@ -103,7 +103,11 @@ const JobAssignments: React.FC = () => {
   }, [router.query.projectId]);
 
   // Only allow managers, supervisors, or admins
-  const allowedRoles = ['manager', 'supervisor', 'admin'];
+  const allowedRoles = [UserRole.MANAGER, UserRole.MODERATOR, UserRole.ADMIN];
+  if (!user || !allowedRoles.includes(user.role)) {
+    router.push('/dashboard');
+    return null;
+  }
 
   // Prevent driver double-booking
   const isDriverBooked = (driverId: string, start: string, end: string) => {
@@ -121,9 +125,6 @@ const JobAssignments: React.FC = () => {
 
   if (!user) {
     return <Typography>Please log in to assign jobs.</Typography>;
-  }
-  if (!allowedRoles.includes(user.role)) {
-    return <Typography>Only managers, supervisors, or admins can assign jobs.</Typography>;
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

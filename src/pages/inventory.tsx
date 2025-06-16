@@ -1,36 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import {
   Box,
+  Typography,
   Button,
+  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
-  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
-  Typography,
-  Chip,
+  Paper,
+  IconButton,
   Tooltip,
-  Autocomplete,
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  SelectChangeEvent,
+  Chip
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
+import { useAuth, UserRole } from '../contexts/AuthContext';
 import { useInventory } from '../contexts/InventoryContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { InventoryItem, InventoryStatus } from '../types/Inventory';
 import { CATEGORIES, UNITS } from '../constants/inventoryConstants';
 
@@ -57,7 +61,9 @@ const getStatusColor = (status: InventoryStatus) => {
 
 const Inventory = () => {
   const { items, addItem, editItem, deleteItem } = useInventory();
-  const { user } = useAuth(); // Assuming user is needed for roles or permissions
+  const { user } = useAuth();
+  const router = useRouter();
+  const { showNotification } = useNotifications();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -76,20 +82,16 @@ const Inventory = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  // Only allow managers, supervisors, or admins
+  const allowedRoles = [UserRole.MANAGER, UserRole.MODERATOR, UserRole.ADMIN];
+  if (!user || !allowedRoles.includes(user.role)) {
+    router.push('/dashboard');
+    return null;
+  }
+
   const handleAdd = async () => {
     try {
-      const newItem: Omit<InventoryItem, 'id' | 'last_updated' | 'updated_by'> = {
-        product_id: formData.product_id,
-        product_name: formData.product_name,
-        description: formData.description || '',
-        unit_price: formData.unit_price,
-        quantity: formData.quantity,
-        status: formData.status,
-        unit: formData.unit || null,
-        category: formData.category || null,
-        supplier: formData.supplier || null,
-      };
-      await addItem(newItem);
+      await addItem(formData);
       setIsAddDialogOpen(false);
       setFormData({
         product_id: '',
@@ -102,8 +104,9 @@ const Inventory = () => {
         supplier: null,
         status: 'in-stock',
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add item');
+      showNotification({ type: 'success', message: 'Item added successfully' });
+    } catch (error) {
+      showNotification({ type: 'error', message: 'Failed to add item' });
     }
   };
 
@@ -118,8 +121,9 @@ const Inventory = () => {
       });
       setIsEditDialogOpen(false);
       setSelectedItem(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to edit item');
+      showNotification({ type: 'success', message: 'Item updated successfully' });
+    } catch (error) {
+      showNotification({ type: 'error', message: 'Failed to update item' });
     }
   };
 
@@ -130,8 +134,9 @@ const Inventory = () => {
       setIsDeleteDialogOpen(false);
       setSelectedItem(null);
       setPassword('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete item');
+      showNotification({ type: 'success', message: 'Item deleted successfully' });
+    } catch (error) {
+      showNotification({ type: 'error', message: 'Failed to delete item' });
     }
   };
 

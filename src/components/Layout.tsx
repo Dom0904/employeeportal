@@ -46,7 +46,6 @@ import {
   Business as BusinessIcon
 } from '@mui/icons-material';
 import { useAuth, UserRole } from '../contexts/AuthContext';
-import logoSvg from '../assets/edgetech-logo.png';
 
 console.log('Layout component loaded.'); // Added for debugging 404
 
@@ -134,6 +133,7 @@ const navigationGroups = [
       { text: 'Employee List', icon: <PeopleIcon />, path: '/employees', roles: [UserRole.ADMIN] },
       { text: 'Employee Status', icon: <AssignmentIcon />, path: '/employee-status', roles: [UserRole.ADMIN, UserRole.MODERATOR] },
       { text: 'Announcements', icon: <AnnouncementIcon />, path: '/announcements', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] },
+      { text: 'Project Management', icon: <AssignmentIcon />, path: '/projects', roles: [UserRole.ADMIN, UserRole.MANAGER] }
     ]
   },
   {
@@ -237,7 +237,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MenuIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-            <img src="/images/edgetech_logo.png" alt="Edgetech Logo" style={{ height: 40, marginRight: 16 }} />
+            <img src="/images/logo.png" alt="EdgeTech Logo" style={{ height: 40, marginRight: 16 }} />
             <Typography variant="h6" noWrap component="div">
               Employee Portal
             </Typography>
@@ -329,7 +329,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}>
           <Box
             component="img"
-            src={logoSvg}
+            src="/images/logo.png"
             alt="EdgeTech Logo"
             sx={{
               height: 50,

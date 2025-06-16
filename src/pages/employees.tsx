@@ -22,82 +22,148 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Divider
+  Divider,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { UserRole } from '../contexts/AuthContext';
 import { SelectChangeEvent } from '@mui/material/Select';
-import { supabase } from '../supabaseClient'; // Import supabase
-import { User } from '../contexts/AuthContext'; // Import User interface
+import { supabase } from '../supabaseClient';
+import { User } from '../contexts/AuthContext';
+import { useRouter } from 'next/router';
+import { useAuth } from '../contexts/AuthContext';
 
-// Mock database for now - in a real app, this would use Supabase
-// Removed Mock database comment and interface below
-
-interface Employee extends User { // Extend User interface
-  // The User interface already has id, id_number, name, email, phoneNumber, position, profilePicture
-  // We can keep jobPosition for display purposes if it's different from position, but align data fetching to 'position'
-  jobPosition?: string; // Optional if it maps to 'position'
+interface Employee extends User {
+  jobPosition?: string;
 }
 
 const EmployeeList = () => {
-  // Removed mock employees useState
+  const router = useRouter();
+  const { user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [newEmployee, setNewEmployee] = useState<Partial<Employee>>({
     name: '',
-    id_number: '', // Use id_number
+    id_number: '',
     email: '',
     phoneNumber: '',
     role: UserRole.REGULAR,
-    // Removed password from newEmployee state, handle separately or via auth
-    position: '' // Use position
+    position: ''
   });
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
-  // In a real app, this would fetch data from Supabase
+  // Check if user has admin role
   useEffect(() => {
-    // Fetch employees from Supabase (profiles table)
-    const fetchEmployees = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, id_number, name, email, phone_number, position, role, profile_picture'); // Select necessary fields
+    if (!user || user.role !== UserRole.ADMIN) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
-        if (error) throw error;
-        // Map fetched data to Employee interface (which extends User)
-        const employeeData: Employee[] = data.map(profile => ({
-          id: profile.id,
-          id_number: profile.id_number,
-          name: profile.name,
-          email: profile.email,
-          phoneNumber: profile.phone_number || '', // Handle potential nulls
-          position: profile.position || '', // Handle potential nulls
-          role: profile.role as UserRole, // Cast role
-          profilePicture: profile.profile_picture || undefined,
-          jobPosition: profile.position || '', // Map position to jobPosition for display if needed
-        }));
-        setEmployees(employeeData);
-      } catch (error) {
-        console.error('Error fetching employees:', error);
-        setSnackbarMessage('Failed to load employees');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
-      }
-    };
-
+  useEffect(() => {
     fetchEmployees();
-  }, []); // Empty dependency array to fetch only on mount
+  }, []);
 
-  const handleAddDialogOpen = () => {
-    setOpenAddDialog(true);
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employee_list')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+
+      const employeeData: Employee[] = data.map(profile => ({
+        id: profile.id,
+        id_number: profile.id_number,
+        name: profile.name,
+        email: profile.email,
+        phoneNumber: profile.phone_number || '',
+        position: profile.position || '',
+        role: profile.role || 'regular',
+        profilePicture: profile.profile_picture || undefined,
+        jobPosition: profile.position || '',
+        department: profile.department || '',
+        status: profile.status || 'active',
+        dateHired: profile.date_hired || null
+      }));
+
+      setEmployees(employeeData);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      showSnackbar('Failed to load employees', 'error');
+    }
   };
 
+  const handleAddEmployee = async () => {
+    try {
+      // First create the auth user
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: newEmployee.email,
+        password: newEmployee.id_number, // Using ID number as initial password
+        email_confirm: true,
+        user_metadata: {
+          id_number: newEmployee.id_number,
+          name: newEmployee.name,
+          role: newEmployee.role
+        }
+      });
+
+      if (authError) throw authError;
+
+      // The profile will be created automatically by the trigger
+      showSnackbar('Employee added successfully', 'success');
+      handleAddDialogClose();
+      fetchEmployees();
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      showSnackbar('Failed to add employee', 'error');
+    }
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!selectedEmployee) return;
+
+    try {
+      // First delete the auth user
+      const { error: authError } = await supabase.auth.admin.deleteUser(selectedEmployee.id);
+      if (authError) throw authError;
+
+      // The profile will be deleted automatically by the foreign key constraint
+      showSnackbar('Employee deleted successfully', 'success');
+      handleDeleteDialogClose();
+      fetchEmployees();
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      showSnackbar('Failed to delete employee', 'error');
+    }
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<UserRole>
+  ) => {
+    const { name, value } = e.target;
+    setNewEmployee(prev => ({
+      ...prev,
+      [name as string]: value
+    }));
+  };
+
+  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const handleAddDialogOpen = () => setOpenAddDialog(true);
   const handleAddDialogClose = () => {
     setOpenAddDialog(false);
     setNewEmployee({
@@ -112,6 +178,7 @@ const EmployeeList = () => {
 
   const handleDeleteDialogOpen = (employee: Employee) => {
     setSelectedEmployee(employee);
+    setOpenDeleteDialog(true);
   };
 
   const handleDeleteDialogClose = () => {
@@ -119,85 +186,9 @@ const EmployeeList = () => {
     setSelectedEmployee(null);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<UserRole>) => {
-    const { name, value } = e.target;
-    // Cast name to keyof Partial<Employee> to allow updating Partial state
-    setNewEmployee({
-      ...newEmployee,
-      [name as keyof Partial<Employee>]: value,
-    });
-  };
-
-  const handleAddEmployee = async () => {
-    try {
-      // Validate required fields
-      if (!newEmployee.name || !newEmployee.id_number) { // Validate name and id_number
-        setSnackbarMessage('Name and ID Number are required');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
-        return;
-      }
-
-      // In a real app, creating a new user would involve Supabase Auth signUp
-      // and then inserting the profile data. Direct insertion into profiles table
-      // with password is not the standard secure approach.
-      // For now, we will disable client-side add employee functionality.
-      setSnackbarMessage('Adding employees is currently disabled in this demo.');
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-      // Commenting out the actual add logic for now
-      // const { data, error } = await supabase
-      //   .from('profiles') // Assuming profiles table for employee data
-      //   .insert([{ ...newEmployee, id_number: newEmployee.id_number, position: newEmployee.position }]); // Map fields
-      // if (error) throw error;
-      // // Refresh the list after adding
-      // fetchEmployees(); // You might want a more efficient way to update state
-      // handleAddDialogClose();
-      // setSnackbarMessage('Employee added successfully');
-      // setSnackbarSeverity('success');
-      // setSnackbarOpen(true);
-    } catch (error) {
-      console.error('Error adding employee:', error);
-      setSnackbarMessage('Failed to add employee');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    }
-  };
-
-  const handleDeleteEmployee = async () => {
-    if (!selectedEmployee) return;
-
-    try {
-      // In a real app, deleting a user involves Supabase Auth deletion
-      // and cascading delete on the profiles table.
-      // Direct deletion from profiles might leave orphaned auth users.
-      // For now, we will disable client-side delete employee functionality.
-       setSnackbarMessage('Deleting employees is currently disabled in this demo.');
-       setSnackbarSeverity('success');
-       setSnackbarOpen(true);
-      // Commenting out the actual delete logic for now
-      // const { error } = await supabase
-      //   .from('profiles')
-      //   .delete()
-      //   .eq('id', selectedEmployee.id);
-      // if (error) throw error;
-      // // Refresh the list after deleting
-      // fetchEmployees(); // You might want a more efficient way to update state
-      // handleDeleteDialogClose();
-      // setSnackbarMessage('Employee removed successfully');
-      // setSnackbarSeverity('success');
-      // setSnackbarOpen(true);
-    } catch (error) {
-      console.error('Error deleting employee:', error);
-      setSnackbarMessage('Failed to remove employee');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
-    }
-  };
-
-  const handleSnackbarClose = () => {
-    setSnackbarOpen(false);
-  };
+  if (!user || user.role !== UserRole.ADMIN) {
+    return null;
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -231,24 +222,22 @@ const EmployeeList = () => {
           <TableBody>
             {employees.map((employee) => (
               <TableRow key={employee.id}>
-                <TableCell>{employee.id_number}</TableCell> {/* Use id_number */}
+                <TableCell>{employee.id_number}</TableCell>
                 <TableCell>{employee.name}</TableCell>
-                <TableCell>{employee.position}</TableCell> {/* Use position */}
+                <TableCell>{employee.position}</TableCell>
                 <TableCell>{employee.email}</TableCell>
-                <TableCell>{employee.phoneNumber}</TableCell> {/* Use phoneNumber */}
+                <TableCell>{employee.phoneNumber}</TableCell>
                 <TableCell>{employee.role}</TableCell>
                 <TableCell align="center">
-                  {/* Edit functionality would need to be implemented to update Supabase */}
-                  {/* Delete button - temporarily commented out */}
-                  {/* <Tooltip title="Delete">*/}
-                  {/*   <IconButton */}
-                  {/*     onClick={() => handleDeleteDialogOpen(employee)} */}
-                  {/*     size="small" */}
-                  {/*     color="error" */}
-                  {/*   > */}
-                  {/*     <DeleteIcon /> */}
-                  {/*   </IconButton> */}
-                  {/* </Tooltip> */}
+                  <Tooltip title="Delete">
+                    <IconButton
+                      onClick={() => handleDeleteDialogOpen(employee)}
+                      size="small"
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -268,7 +257,7 @@ const EmployeeList = () => {
         <DialogTitle>Add New Employee</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Please fill in the employee details. ID Number and Password will be used for login.
+            Please fill in the employee details. ID Number will be used as the initial password.
           </DialogContentText>
           <TextField
             autoFocus
@@ -326,7 +315,7 @@ const EmployeeList = () => {
             onChange={handleInputChange}
             sx={{ mb: 2 }}
           />
-          <FormControl fullWidth variant="outlined">
+          <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel id="role-select-label">Role</InputLabel>
             <Select
               labelId="role-select-label"
@@ -371,10 +360,10 @@ const EmployeeList = () => {
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
-        onClose={handleSnackbarClose}
+        onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
           {snackbarMessage}
         </Alert>
       </Snackbar>
