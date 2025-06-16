@@ -78,6 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       id_number,
     };
     console.log('API Route: Profile data to insert:', profileDataToInsert);
+    console.log('API Route: Value of nameToInsert before insert:', nameToInsert);
 
     const { error: profileError } = await supabaseAdmin.from('profiles').insert([
       profileDataToInsert,
