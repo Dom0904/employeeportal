@@ -62,21 +62,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // First, create the Supabase Auth user
     console.log('API Route: Creating Supabase Auth user...');
+    console.log('API Route: Using service role key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Present' : 'Missing');
+    
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: id_number, // Use ID number as initial password
       email_confirm: true,
+      user_metadata: {
+        name,
+        role,
+        id_number
+      }
     });
 
     if (userError) {
-      console.error('API Route: Error creating auth user:', userError);
-      return res.status(500).json({ error: `Failed to create auth user: ${userError.message}` });
+      console.error('API Route: Detailed auth error:', {
+        message: userError.message,
+        status: userError.status,
+        name: userError.name,
+        stack: userError.stack
+      });
+      return res.status(500).json({ 
+        error: `Failed to create auth user: ${userError.message}`,
+        details: userError
+      });
     }
 
     if (!userData?.user?.id) {
       console.error('API Route: No user ID returned from auth creation');
       return res.status(500).json({ error: 'Failed to create auth user: No user ID returned' });
     }
+
+    console.log('API Route: Auth user created successfully:', {
+      id: userData.user.id,
+      email: userData.user.email,
+      confirmed: userData.user.email_confirmed_at
+    });
 
     // Then, create the employee record
     const employeeDataToInsert = {
