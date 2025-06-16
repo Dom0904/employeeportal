@@ -9,9 +9,8 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
-import { useJobs } from '../contexts/JobContext';
+import { useJobs, Job } from '../contexts/JobContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Job } from '../types/Job';
 
 const JobAcknowledgement: React.FC = () => {
   const { user } = useAuth();
@@ -20,12 +19,11 @@ const JobAcknowledgement: React.FC = () => {
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
   // Filter jobs assigned to the user that need acknowledgement
-  const jobsToAcknowledge: Job[] = jobs.filter(job => {
+  const jobsToAcknowledge = jobs.filter((job: Job) => {
     if (!user) return false;
-    const isAssigned = job.personnelIds.includes(user.id) || job.driverId === user.id;
-    const needsAck = !job.acknowledgedBy.includes(user.id);
-    const isActive = job.status === 'pending' || job.status === 'acknowledged';
-    return isAssigned && needsAck && isActive;
+    const isAssigned = (job.personnelIds ?? []).includes(user.id) || job.driver_id === user.id;
+    const needsAck = Array.isArray(job.acknowledged_at) && !job.acknowledged_at.includes(user.id);
+    return isAssigned && needsAck;
   });
 
   const handleAcknowledge = async (jobId: string) => {
@@ -58,8 +56,8 @@ const JobAcknowledgement: React.FC = () => {
                     {job.description}
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1 }}>
-                    <strong>Start:</strong> {new Date(job.timeStart).toLocaleString()}<br />
-                    <strong>End:</strong> {new Date(job.timeEnd).toLocaleString()}
+                    <strong>Start:</strong> {new Date(job.timeStart || 0).toLocaleString()}<br />
+                    <strong>End:</strong> {new Date(job.timeEnd || 0).toLocaleString()}
                   </Typography>
                   <Button
                     sx={{ mt: 2 }}
