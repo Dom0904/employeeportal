@@ -44,10 +44,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     console.log('API Route: Attempting to create user in Supabase Auth...');
+    console.log('API Route: Creating user with email:', email, 'and password: [REDACTED]');
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      // email_confirm: true, // Temporarily commented out for debugging
     });
 
     if (userError) {
