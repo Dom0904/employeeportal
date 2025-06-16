@@ -81,6 +81,10 @@ const Inventory = () => {
   });
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => { setIsClient(true); }, []);
+  if (!isClient) return null;
 
   // Only allow managers, supervisors, or admins
   const allowedRoles = [UserRole.MANAGER, UserRole.MODERATOR, UserRole.ADMIN];

@@ -80,6 +80,7 @@ const JobAssignments: React.FC = () => {
     severity: 'success' as 'success' | 'error'
   });
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -88,6 +89,9 @@ const JobAssignments: React.FC = () => {
     };
     fetchUsers();
   }, [getAllUsers]);
+
+  useEffect(() => { setIsClient(true); }, []);
+  if (!isClient) return null;
 
   // Filter users based on their roles/positions
   const drivers = allUsers.filter(u => u.position === 'Driver');

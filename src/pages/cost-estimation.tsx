@@ -97,6 +97,10 @@ const CostEstimation = () => {
   const [snackbarMessage, setSnackbarMessage] = useState<string>('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => { setIsClient(true); }, []);
+  if (!isClient) return null;
+
   // Calculate total cost whenever estimation items change
   useEffect(() => {
     const newTotal = estimationItems.reduce((sum, item) => sum + item.total, 0);

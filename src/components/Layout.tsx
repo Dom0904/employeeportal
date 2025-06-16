@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { styled, useTheme } from '@mui/material/styles';
 import {
@@ -163,6 +163,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [notificationMenuAnchorEl, setNotificationMenuAnchorEl] = useState<null | HTMLElement>(null);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => { setIsClient(true); }, []);
+  if (!isClient) return null;
 
   // Mock notifications
   const notifications = [
