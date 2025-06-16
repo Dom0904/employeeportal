@@ -63,13 +63,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log('API Route: User created in Auth. Attempting to insert profile...');
 
+    // Ensure optional fields are explicitly null if empty strings
+    const phoneNumberToInsert = phoneNumber === '' ? null : phoneNumber;
+    const positionToInsert = position === '' ? null : position;
+
     const profileDataToInsert = {
       id: userData.user.id,
       name,
       role,
       email,
-      phone_number: phoneNumber,
-      position,
+      phone_number: phoneNumberToInsert, // Use the adjusted value
+      position: positionToInsert,       // Use the adjusted value
       id_number,
     };
     console.log('API Route: Profile data to insert:', profileDataToInsert);
