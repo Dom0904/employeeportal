@@ -66,14 +66,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Ensure optional fields are explicitly null if empty strings
     const phoneNumberToInsert = phoneNumber === '' ? null : phoneNumber;
     const positionToInsert = position === '' ? null : position;
+    const nameToInsert = name === null || name === undefined || name === '' ? '' : name; // Ensure name is always a non-null string
 
     const profileDataToInsert = {
       id: userData.user.id,
-      name,
+      name: nameToInsert,
       role,
       email,
-      phone_number: phoneNumberToInsert, // Use the adjusted value
-      position: positionToInsert,       // Use the adjusted value
+      phone_number: phoneNumberToInsert,
+      position: positionToInsert,
       id_number,
     };
     console.log('API Route: Profile data to insert:', profileDataToInsert);
