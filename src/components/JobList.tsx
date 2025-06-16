@@ -54,7 +54,7 @@ export const JobList: React.FC<JobListProps> = ({ jobsByStatus, onJobSelect, sel
     if (!user) return false;
     const isAssignedToUser = (job.personnelIds ?? []).includes(user.id) || job.driver_id === user.id;
     const isAcknowledgeable = job.status === 'pending' || job.status === 'acknowledged';
-    return isAssignedToUser && !job.acknowledged_at?.includes(user.id) && isAcknowledgeable;
+    return isAssignedToUser && Array.isArray(job.acknowledged_at) && !job.acknowledged_at.includes(user.id) && isAcknowledgeable;
   };
 
   const handleAcknowledge = (jobId: string) => {
