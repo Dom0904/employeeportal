@@ -64,9 +64,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('API Route: Creating Supabase Auth user...');
     console.log('API Route: Using service role key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Present' : 'Missing');
     
+    // Create the user with email/password
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: id_number, // Use ID number as initial password
+      password: id_number,
       email_confirm: true,
       user_metadata: {
         name,
@@ -93,7 +94,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to create auth user: No user ID returned' });
     }
 
-    console.log('API Route: Auth user created successfully:', {
+    // Link the identity to the user
+    const { error: linkError } = await supabaseAdmin.auth.admin.linkIdentity({
+      user_id: userData.user.id,
+      identity_data: {
+        sub: userData.user.id,
+        email: email
+      },
+      provider: 'email'
+    });
+
+    if (linkError) {
+      console.error('API Route: Error linking identity:', linkError);
+      // Clean up the created user if linking fails
+      await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
+      return res.status(500).json({ 
+        error: `Failed to link identity: ${linkError.message}`,
+        details: linkError
+      });
+    }
+
+    console.log('API Route: Auth user created and linked successfully:', {
       id: userData.user.id,
       email: userData.user.email,
       confirmed: userData.user.email_confirmed_at
