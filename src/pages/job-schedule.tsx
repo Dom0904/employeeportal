@@ -54,18 +54,18 @@ const JobSchedule: React.FC = () => {
   const jobsByStatus = {
     upcoming: userJobs.filter(job => {
       const now = new Date();
-      const start = new Date(job.timeStart);
+      const start = new Date(job.timeStart !== undefined ? job.timeStart : 0);
       return now < start && (job.status === 'pending' || job.status === 'acknowledged');
     }),
     inProgress: userJobs.filter(job => {
       const now = new Date();
-      const start = new Date(job.timeStart);
-      const end = new Date(job.timeEnd);
+      const start = new Date(job.timeStart !== undefined ? job.timeStart : 0);
+      const end = new Date(job.timeEnd !== undefined ? job.timeEnd : 0);
       return (now >= start && now <= end) || job.status === 'in-progress';
     }),
     completed: userJobs.filter(job => {
       const now = new Date();
-      const end = new Date(job.timeEnd);
+      const end = new Date(job.timeEnd !== undefined ? job.timeEnd : 0);
       return now > end || job.status === 'completed' || job.status === 'cancelled';
     })
   };
