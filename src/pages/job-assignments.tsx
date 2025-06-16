@@ -116,8 +116,8 @@ const JobAssignments: React.FC = () => {
     const e = new Date(end).getTime();
     return jobs.some(job => {
       if (job.driver_id !== driverId) return false;
-      const js = new Date(job.time_start).getTime();
-      const je = new Date(job.time_end).getTime();
+      const js = new Date(job.timeStart || 0).getTime();
+      const je = new Date(job.timeEnd || 0).getTime();
       // Overlap check
       return (s < je && e > js);
     });
