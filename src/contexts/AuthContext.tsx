@@ -196,6 +196,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const profile = await fetchUserProfile(data.user.id);
         if (profile) {
           console.log('AuthContext: Profile fetched:', profile);
+          console.log('AuthContext: Fetched User Role:', profile.role);
           setUser(profile);
         } else {
           console.log('AuthContext: Profile not found for user ID:', data.user.id);
@@ -215,6 +216,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const profile = await fetchUserProfile(session.user.id);
         if (profile) {
           console.log('AuthContext: Auth state change profile fetched:', profile);
+          console.log('AuthContext: Auth State Change Fetched User Role:', profile.role);
           setUser(profile);
         } else {
           console.log('AuthContext: Auth state change profile not found for user ID:', session.user.id);
