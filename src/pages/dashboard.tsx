@@ -54,10 +54,10 @@ const Dashboard = () => {
   ];
   
   // Filter jobs for today's schedule
-  const todaySchedule = jobs.filter(job => isToday(new Date(job.timeStart)))
+  const todaySchedule = jobs.filter(job => isToday(new Date(job.timeStart || 0)))
     .map(job => ({
       id: job.id,
-      time: format(new Date(job.timeStart), 'hh:mm a'), // Format time as needed
+      time: format(new Date(job.timeStart || 0), 'hh:mm a'), // Format time as needed
       title: job.title,
     }));
 
