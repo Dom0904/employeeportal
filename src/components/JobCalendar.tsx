@@ -35,8 +35,8 @@ const JobCalendar: React.FC<JobCalendarProps> = ({ jobs, onJobSelect, selectedJo
     const jobsByDateMap = new Map<string, any[]>();
     
     jobs.forEach(job => {
-      const jobStart = new Date(job.timeStart);
-      const jobEnd = new Date(job.timeEnd);
+      const jobStart = new Date(String(job.timeStart ?? ''));
+      const jobEnd = new Date(String(job.timeEnd ?? ''));
       
       // For multi-day jobs, add them to each day they span
       const currentDate = new Date(jobStart);
@@ -294,7 +294,7 @@ const JobCalendar: React.FC<JobCalendarProps> = ({ jobs, onJobSelect, selectedJo
                             textOverflow: 'ellipsis',
                           }}
                         >
-                          {format(new Date(job.timeStart), 'h:mm a')} - {format(new Date(job.timeEnd), 'h:mm a')}
+                          {format(new Date(String(job.timeStart ?? '')), 'h:mm a')} - {format(new Date(String(job.timeEnd ?? '')), 'h:mm a')}
                         </Typography>
                       }
                       sx={{ my: 0 }}
