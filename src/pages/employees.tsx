@@ -105,6 +105,13 @@ const EmployeeList = () => {
 
   const handleAddEmployee = async () => {
     try {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmployee.email || '')) {
+        showSnackbar('Please enter a valid email address', 'error');
+        return;
+      }
+
       console.log('Attempting to add employee via API route...');
       console.log('Client-side: Data being sent to API:', newEmployee);
       const response = await fetch('/api/create-employee-user', {
