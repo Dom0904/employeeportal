@@ -60,39 +60,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const newEmployeeId = randomUUID(); // Generate a new UUID for the employee ID
+    // First, create the Supabase Auth user
+    console.log('API Route: Creating Supabase Auth user...');
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: id_number, // Use ID number as initial password
+      email_confirm: true,
+    });
 
-    // Ensure optional fields are explicitly null if empty strings
-    const phoneNumberToInsert = phoneNumber === '' ? null : phoneNumber;
-    const positionToInsert = position === '' ? null : position;
-    const nameToInsert = name === null || name === undefined || name === '' ? '' : name;
+    if (userError) {
+      console.error('API Route: Error creating auth user:', userError);
+      return res.status(500).json({ error: `Failed to create auth user: ${userError.message}` });
+    }
 
+    if (!userData?.user?.id) {
+      console.error('API Route: No user ID returned from auth creation');
+      return res.status(500).json({ error: 'Failed to create auth user: No user ID returned' });
+    }
+
+    // Then, create the employee record
     const employeeDataToInsert = {
-      id: newEmployeeId,
-      name: nameToInsert,
+      id: userData.user.id, // Use the auth user's ID
+      name: name.trim(),
       role,
       email,
-      phone_number: phoneNumberToInsert,
-      position: positionToInsert,
-      id_number,
+      phone_number: phoneNumber?.trim() || null,
+      position: position?.trim() || null,
+      id_number: id_number.trim(),
     };
 
-    console.log('API Route: Attempting to insert into employee_list:', employeeDataToInsert);
-
+    console.log('API Route: Creating employee record:', employeeDataToInsert);
     const { error: insertError } = await supabaseAdmin.from('employee_list').insert([
       employeeDataToInsert,
     ]);
 
     if (insertError) {
-      console.error('API Route: Error inserting into employee_list:', insertError.message, insertError);
-      return res.status(500).json({ error: insertError.message || 'Failed to add employee to list' });
+      // If employee record creation fails, delete the auth user
+      console.error('API Route: Error creating employee record:', insertError);
+      await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
+      return res.status(500).json({ error: `Failed to create employee record: ${insertError.message}` });
     }
 
-    console.log('API Route: Employee added to list successfully!');
-    return res.status(200).json({ message: 'Employee added to list successfully!', employeeId: newEmployeeId });
+    console.log('API Route: Employee created successfully!');
+    return res.status(200).json({ 
+      message: 'Employee created successfully!',
+      userId: userData.user.id,
+      email: userData.user.email,
+      initialPassword: id_number // Send back the initial password for admin reference
+    });
 
   } catch (error: any) {
-    console.error('API Route: Unexpected error during employee addition:', error.message || error);
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    console.error('API Route: Unexpected error during employee creation:', error);
+    return res.status(500).json({ error: `Internal server error: ${error.message}` });
   }
 } 

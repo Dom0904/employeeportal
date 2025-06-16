@@ -153,7 +153,12 @@ const EmployeeList = () => {
         throw new Error(data.error || 'Failed to create employee');
       }
 
-      showSnackbar('Employee added successfully', 'success');
+      // Show success message with initial password
+      showSnackbar(
+        `Employee added successfully! Initial password: ${data.initialPassword}`,
+        'success'
+      );
+      
       handleAddDialogClose();
       fetchEmployees();
     } catch (error: any) {
