@@ -18,15 +18,15 @@ const JobsAssigned = () => {
   const jobsByStatus = {
     upcoming: userJobs.filter(job => 
       (job.status === 'pending' || job.status === 'acknowledged') &&
-      (job.personnelIds.includes(user?.id || '') || job.driverId === user?.id)
+      (job.personnelIds ?? []).includes(user?.id || '') || job.driver_id === user?.id
     ),
     inProgress: userJobs.filter(job => 
       job.status === 'in-progress' &&
-      (job.personnelIds.includes(user?.id || '') || job.driverId === user?.id)
+      (job.personnelIds ?? []).includes(user?.id || '') || job.driver_id === user?.id
     ),
     completed: userJobs.filter(job => 
       job.status === 'completed' &&
-      (job.personnelIds.includes(user?.id || '') || job.driverId === user?.id)
+      (job.personnelIds ?? []).includes(user?.id || '') || job.driver_id === user?.id
     )
   };
 
