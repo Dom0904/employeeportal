@@ -57,7 +57,7 @@ const LeaveRequests = () => {
             {myRequests.length === 0 && <Typography>No leave requests found.</Typography>}
             {myRequests.map(lr => (
               <Box key={lr.id}>
-                <Typography><b>{format(new Date(lr.startDate), 'yyyy-MM-dd')}</b> to <b>{format(new Date(lr.endDate), 'yyyy-MM-dd')}</b></Typography>
+                <Typography><b>{format(new Date(lr.startDate !== undefined ? lr.startDate : 0), 'yyyy-MM-dd')}</b> to <b>{format(new Date(lr.endDate !== undefined ? lr.endDate : 0), 'yyyy-MM-dd')}</b></Typography>
                 <Typography color="text.secondary">Reason: {lr.reason}</Typography>
                 <Chip label={lr.status.toUpperCase()} color={lr.status === 'approved' ? 'success' : lr.status === 'rejected' ? 'error' : 'warning'} sx={{ mt: 1 }} />
               </Box>
@@ -74,7 +74,7 @@ const LeaveRequests = () => {
               {leaveRequests.length === 0 && <Typography>No leave requests found.</Typography>}
               {leaveRequests.map(lr => (
                 <Box key={lr.id} sx={{ border: '1px solid #eee', borderRadius: 2, p: 2 }}>
-                  <Typography><b>{lr.userName || lr.userId}</b> | <b>{format(new Date(lr.startDate), 'yyyy-MM-dd')}</b> to <b>{format(new Date(lr.endDate), 'yyyy-MM-dd')}</b></Typography>
+                  <Typography><b>{lr.userName || lr.userId}</b> | <b>{format(new Date(lr.startDate !== undefined ? lr.startDate : 0), 'yyyy-MM-dd')}</b> to <b>{format(new Date(lr.endDate !== undefined ? lr.endDate : 0), 'yyyy-MM-dd')}</b></Typography>
                   <Typography color="text.secondary">Reason: {lr.reason}</Typography>
                   <Chip label={lr.status.toUpperCase()} color={lr.status === 'approved' ? 'success' : lr.status === 'rejected' ? 'error' : 'warning'} sx={{ mt: 1, mr: 1 }} />
                   {lr.status === 'pending' && (

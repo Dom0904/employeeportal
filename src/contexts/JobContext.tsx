@@ -179,8 +179,8 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const getJobsByDateRange = useCallback((startDate: Date, endDate: Date) => {
     return jobs.filter(job => {
-      const jobStart = new Date(job.timeStart ?? 0);
-      const jobEnd = new Date(job.timeEnd ?? 0);
+      const jobStart = new Date(job.timeStart !== undefined ? job.timeStart : 0);
+      const jobEnd = new Date(job.timeEnd !== undefined ? job.timeEnd : 0);
       return (
         (jobStart >= startDate && jobStart <= endDate) ||
         (jobEnd >= startDate && jobEnd <= endDate) ||

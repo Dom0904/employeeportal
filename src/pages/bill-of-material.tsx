@@ -243,8 +243,8 @@ const BillOfMaterial = () => {
                 <TableCell sx={{ fontSize: '0.9rem' }}>{bom.author}</TableCell>
                 <TableCell sx={{ fontSize: '0.9rem' }}>{bom.projectId}</TableCell>
                 <TableCell sx={{ fontSize: '0.9rem' }}>{bom.items.length} items</TableCell>
-                <TableCell sx={{ fontSize: '0.9rem' }}>{formatDate(bom.createdAt)}</TableCell>
-                <TableCell sx={{ fontSize: '0.9rem' }}>{formatDate(bom.updatedAt)}</TableCell>
+                <TableCell sx={{ fontSize: '0.9rem' }}>{new Date(bom.createdAt !== undefined ? bom.createdAt : 0).toLocaleDateString()}</TableCell>
+                <TableCell sx={{ fontSize: '0.9rem' }}>{new Date(bom.updatedAt !== undefined ? bom.updatedAt : 0).toLocaleDateString()}</TableCell>
                 <TableCell align="right" sx={{ fontSize: '0.9rem' }}>
                   <Tooltip title="Edit">
                     <IconButton

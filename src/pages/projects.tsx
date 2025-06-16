@@ -345,7 +345,7 @@ const Projects = () => {
                             {job.description}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                            {format(new Date(job.timeStart), 'MMM d, yyyy h:mm a')} - {format(new Date(job.timeEnd), 'MMM d, yyyy h:mm a')}
+                            {format(new Date(job.timeStart !== undefined ? job.timeStart : 0), 'MMM d, yyyy h:mm a')} - {format(new Date(job.timeEnd !== undefined ? job.timeEnd : 0), 'MMM d, yyyy h:mm a')}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" display="block">
                             Location: {job.siteAddress}
