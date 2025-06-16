@@ -106,6 +106,7 @@ const EmployeeList = () => {
   const handleAddEmployee = async () => {
     try {
       console.log('Attempting to add employee via API route...');
+      console.log('Client-side: Data being sent to API:', newEmployee);
       const response = await fetch('/api/create-employee-user', {
         method: 'POST',
         headers: {
