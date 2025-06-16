@@ -38,8 +38,8 @@ interface JobListProps {
 
 export const filterJobsByAcknowledgment = (jobs: Job[], userId: string) => {
   return jobs.filter(job => {
-    const isAssignedToUser = job.personnelIds.includes(userId) || job.driverId === userId;
-    const needsAcknowledgment = !job.acknowledgedBy.includes(userId);
+    const isAssignedToUser = (job.personnelIds ?? []).includes(userId) || job.driver_id === userId;
+    const needsAcknowledgment = Array.isArray(job.acknowledged_at) && !job.acknowledged_at.includes(userId);
     const isAcknowledgeable = job.status === 'pending' || job.status === 'acknowledged';
     return isAssignedToUser && needsAcknowledgment && isAcknowledgeable;
   });
@@ -52,9 +52,9 @@ export const JobList: React.FC<JobListProps> = ({ jobsByStatus, onJobSelect, sel
 
   const needsAcknowledgment = (job: Job) => {
     if (!user) return false;
-    const isAssignedToUser = job.personnelIds.includes(user.id) || job.driverId === user.id;
+    const isAssignedToUser = (job.personnelIds ?? []).includes(user.id) || job.driver_id === user.id;
     const isAcknowledgeable = job.status === 'pending' || job.status === 'acknowledged';
-    return isAssignedToUser && !job.acknowledgedBy.includes(user.id) && isAcknowledgeable;
+    return isAssignedToUser && !job.acknowledged_at?.includes(user.id) && isAcknowledgeable;
   };
 
   const handleAcknowledge = (jobId: string) => {
@@ -79,8 +79,8 @@ export const JobList: React.FC<JobListProps> = ({ jobsByStatus, onJobSelect, sel
   };
 
   const renderJobItem = (job: Job) => {
-    const startDate = new Date(job.timeStart);
-    const endDate = new Date(job.timeEnd);
+    const startDate = new Date(job.timeStart || 0);
+    const endDate = new Date(job.timeEnd || 0);
     const isSelected = selectedJobId === job.id;
     
     const getStatusInfo = () => {
