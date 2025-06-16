@@ -121,7 +121,6 @@ const EmployeeList = () => {
         },
         body: JSON.stringify({
           email: newEmployee.email,
-          password: newEmployee.id_number, // Use id_number as initial password
           name: newEmployee.name,
           role: newEmployee.role,
           phoneNumber: newEmployee.phoneNumber,
