@@ -126,24 +126,28 @@ const EmployeeList = () => {
         return;
       }
 
+      const requestData = {
+        email: newEmployee.email.trim(),
+        name: newEmployee.name.trim(),
+        role: newEmployee.role,
+        phoneNumber: newEmployee.phoneNumber?.trim() || '',
+        position: newEmployee.position?.trim() || '',
+        id_number: newEmployee.id_number.trim(),
+      };
+
       console.log('Attempting to add employee via API route...');
-      console.log('Client-side: Data being sent to API:', newEmployee);
+      console.log('Client-side: Data being sent to API:', requestData);
+
       const response = await fetch('/api/create-employee-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email: newEmployee.email,
-          name: newEmployee.name,
-          role: newEmployee.role,
-          phoneNumber: newEmployee.phoneNumber,
-          position: newEmployee.position,
-          id_number: newEmployee.id_number,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       const data = await response.json();
+      console.log('API Response:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create employee');
