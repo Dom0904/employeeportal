@@ -3,7 +3,6 @@ import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
 import { supabase } from '../supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import type { Job } from '../types/Job';
 
 interface JobContextType {
   jobs: Job[];
@@ -33,6 +32,26 @@ const getRandomColor = () => {
   return colors[Math.floor(Math.random() * colors.length)];
 };
 
+export interface Job {
+  id: string;
+  title: string;
+  description: string;
+  natureOfWork?: string;
+  jobOrderNumber?: string;
+  siteAddress?: string;
+  timeStart?: string;
+  timeEnd?: string;
+  supervisorId?: string;
+  personnelIds?: string[];
+  driver_id?: string | null;
+  project_id?: string | null;
+  status?: 'pending' | 'acknowledged' | 'in-progress' | 'completed' | 'cancelled';
+  acknowledged_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  color?: string;
+}
+
 export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { /* user */ } = useAuth();
   const { showNotification } = useNotifications();
@@ -57,34 +76,32 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const assignJob = useCallback(async (jobData: Omit<Job, 'id' | 'status' | 'acknowledged_at' | 'created_at' | 'updated_at'>) => {
     const newJob: Job = {
-      ...jobData,
       id: uuidv4(),
+      title: jobData.title,
+      description: jobData.description,
+      natureOfWork: jobData.natureOfWork,
+      jobOrderNumber: jobData.jobOrderNumber,
+      siteAddress: jobData.siteAddress,
+      timeStart: jobData.timeStart,
+      timeEnd: jobData.timeEnd,
+      supervisorId: jobData.supervisorId,
+      personnelIds: jobData.personnelIds,
+      driver_id: jobData.driver_id || null,
+      project_id: jobData.project_id || null,
       status: 'pending',
       acknowledged_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       color: getRandomColor(),
-      project_id: jobData.project_id || null,
-      description: jobData.description || '',
-      nature_of_work: jobData.nature_of_work,
-      job_order_number: jobData.job_order_number,
-      site_address: jobData.site_address,
-      time_start: jobData.time_start,
-      time_end: jobData.time_end,
-      supervisor_id: jobData.supervisor_id,
-      personnel_ids: jobData.personnel_ids,
-      driver_id: jobData.driver_id
     };
-
     const { error } = await supabase.from('jobs').insert([newJob]);
     if (error) {
-      console.error('Error inserting job:', error);
       showNotification({ type: 'error', message: 'Failed to assign job' });
       throw error;
     }
     setJobs(prevJobs => [newJob, ...prevJobs]);
     // Notify assigned personnel
-    jobData.personnel_ids.forEach(personId => {
+    (jobData.personnelIds || []).forEach((personId: string) => {
       showNotification({
         message: `New job assigned: ${newJob.title}`,
         type: 'info',
@@ -150,9 +167,9 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const getJobsByUser = useCallback((userId: string) => {
     return jobs.filter(job => 
-      job.personnel_ids.includes(userId) || 
+      (job.personnelIds ?? []).includes(userId) || 
       job.driver_id === userId ||
-      job.supervisor_id === userId
+      job.supervisorId === userId
     );
   }, [jobs]);
 
@@ -162,8 +179,8 @@ export const JobProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const getJobsByDateRange = useCallback((startDate: Date, endDate: Date) => {
     return jobs.filter(job => {
-      const jobStart = new Date(job.time_start);
-      const jobEnd = new Date(job.time_end);
+      const jobStart = new Date(job.timeStart ?? 0);
+      const jobEnd = new Date(job.timeEnd ?? 0);
       return (
         (jobStart >= startDate && jobStart <= endDate) ||
         (jobEnd >= startDate && jobEnd <= endDate) ||
