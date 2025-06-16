@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -14,64 +14,54 @@ import {
   Alert,
   SelectChangeEvent,
   Checkbox,
-  ListItemText,
-  useTheme,
   Chip
 } from '@mui/material';
-import { useAuth, UserRole } from '../contexts/AuthContext';
+import { Add as AddIcon } from '@mui/icons-material';
+import { useAuth, UserRole, User } from '../contexts/AuthContext';
 import { useJobs } from '../contexts/JobContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useRouter } from 'next/router';
 import type { Job } from '../types/Job';
-import type { User } from '../contexts/AuthContext';
 
 // Remove mock data for users
-// const users = [
-//   { id: '1', name: 'Alice', role: 'regular', position: 'Technician' },
-//   { id: '2', name: 'Bob', role: 'regular', position: 'Driver' },
-//   { id: '3', name: 'Carol', role: 'regular', position: 'Driver' },
-//   { id: '4', name: 'Dave', role: 'manager', position: 'Manager' },
-//   { id: '5', name: 'Eve', role: 'admin', position: 'Admin' },
-// ];
-
-// const drivers = users.filter(u => u.position === 'Driver');
-// const managers = users.filter(u => u.position === 'Manager' || u.role === 'admin');
-// const personnel = users.filter(u => u.position !== 'Driver' && u.position !== 'Manager' && u.role !== 'admin');
 
 interface FormData {
-  title: string;
-  nature_of_work: string;
-  job_order_number: string;
-  site_address: string;
-  time_start: string;
-  time_end: string;
-  supervisor_id: string;
-  personnel_ids: string[];
-  driver_id: string | null;
   project_id: string | null;
+  title: string;
+  description: string;
+  natureOfWork: string;
+  jobOrderNumber: string;
+  siteAddress: string;
+  timeStart: string;
+  timeEnd: string;
+  supervisorId: string | null;
+  driver_id: string | null;
+  personnelIds: string[];
+  acknowledged_at?: string | null;
 }
 
 const initialFormData: FormData = {
+  project_id: null,
   title: '',
-  nature_of_work: '',
-  job_order_number: '',
-  site_address: '',
-  time_start: '',
-  time_end: '',
-  supervisor_id: '',
-  personnel_ids: [],
+  description: '',
+  natureOfWork: '',
+  jobOrderNumber: '',
+  siteAddress: '',
+  timeStart: '',
+  timeEnd: '',
+  supervisorId: null,
   driver_id: null,
-  project_id: null
+  personnelIds: [],
+  acknowledged_at: null,
 };
 
 const JobAssignments: React.FC = () => {
-  const { user, getAllUsers } = useAuth();
+  const { user, getAllUsers } = useAuth(); // Get getAllUsers from useAuth
   const { assignJob, jobs } = useJobs();
   const { projects } = useProject();
   const { showNotification } = useNotifications();
   const router = useRouter();
-  const theme = useTheme();
 
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [snackbar, setSnackbar] = useState({
@@ -79,8 +69,9 @@ const JobAssignments: React.FC = () => {
     message: '',
     severity: 'success' as 'success' | 'error'
   });
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [isClient, setIsClient] = useState(false);
+
+  const [allUsers, setAllUsers] = useState<User[]>([]); // State to hold all users
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -90,28 +81,16 @@ const JobAssignments: React.FC = () => {
     fetchUsers();
   }, [getAllUsers]);
 
-  useEffect(() => { setIsClient(true); }, []);
-  if (!isClient) return null;
-
-  // Filter users based on their roles/positions
-  const drivers = allUsers.filter(u => u.position === 'Driver');
-  const managers = allUsers.filter(u => u.role === UserRole.MANAGER || u.role === UserRole.ADMIN);
-  const personnel = allUsers.filter(u => u.position !== 'Driver' && u.role !== UserRole.MANAGER && u.role !== UserRole.ADMIN);
-
-  // Get project ID from URL if present
   useEffect(() => {
-    const projectId = router.query.projectId as string;
-    if (projectId) {
-      setFormData(prev => ({ ...prev, project_id: projectId }));
-    }
-  }, [router.query.projectId]);
+    // Filter users based on their roles/positions
+    const allowedRolesForPersonnel = [UserRole.ADMIN, UserRole.MANAGER, UserRole.MODERATOR, UserRole.REGULAR]; // Include regular for personnelIds
+    const drivers = allUsers.filter(u => u.position === 'Driver'); // Separately get drivers
+    const nonDrivers = allUsers.filter(u => u.position !== 'Driver' && allowedRolesForPersonnel.includes(u.role));
+    setFilteredUsers([...nonDrivers, ...drivers]);
+  }, [allUsers]);
 
-  // Only allow managers, supervisors, or admins
-  const allowedRoles = [UserRole.MANAGER, UserRole.MODERATOR, UserRole.ADMIN];
-  if (!user || !allowedRoles.includes(user.role)) {
-    router.push('/dashboard');
-    return null;
-  }
+  // Only allow managers, supervisors, or admins for the main functionality
+  const allowedRolesForPage = [UserRole.MANAGER, UserRole.MODERATOR, UserRole.ADMIN];
 
   // Prevent driver double-booking
   const isDriverBooked = (driverId: string, start: string, end: string) => {
@@ -130,19 +109,40 @@ const JobAssignments: React.FC = () => {
   if (!user) {
     return <Typography>Please log in to assign jobs.</Typography>;
   }
+  if (!allowedRolesForPage.includes(user.role)) {
+    return <Typography>Only managers, supervisors, or admins can assign jobs.</Typography>;
+  }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Get project ID from URL if present
+  useEffect(() => {
+    const projectId = router.query.projectId as string;
+    if (projectId) {
+      setFormData(prev => ({ ...prev, project_id: projectId }));
+    }
+  }, [router.query.projectId]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleSelectChange = (e: SelectChangeEvent<string | string[]>) => {
-    const { name, value } = e.target;
-    if (name === 'personnel_ids') {
-      setFormData(prev => ({ ...prev, [name]: value as string[] }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value as string }));
-    }
+  const handlePersonnelChange = (event: SelectChangeEvent<string[]>) => {
+    const value = event.target.value;
+    setFormData(prev => ({
+      ...prev,
+      personnelIds: value as string[]
+    }));
+  };
+
+  const handleSelectChange = (event: SelectChangeEvent<string | null>) => {
+    const { name, value } = event.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value === '' ? null : value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -157,11 +157,20 @@ const JobAssignments: React.FC = () => {
       return;
     }
 
+    if (formData.timeStart && formData.timeEnd) {
+      const start = new Date(formData.timeStart);
+      const end = new Date(formData.timeEnd);
+      if (start.getTime() >= end.getTime()) {
+        showNotification({ type: 'error', message: 'End time must be after start time.' });
+        return;
+      }
+    }
+
     // Prevent driver double-booking only if a driver is selected
-    if (formData.driver_id && isDriverBooked(formData.driver_id, formData.time_start, formData.time_end)) {
+    if (formData.driver_id && isDriverBooked(formData.driver_id, formData.timeStart, formData.timeEnd)) {
       setSnackbar({
         open: true,
-        message: 'Driver is already booked for this time slot.',
+        message: 'Driver is already booked for another job during this time.',
         severity: 'error'
       });
       return;
@@ -169,8 +178,17 @@ const JobAssignments: React.FC = () => {
 
     try {
       const newJob: Omit<Job, 'id' | 'status' | 'acknowledged_at' | 'created_at' | 'updated_at'> = {
-        ...formData,
-        description: formData.nature_of_work || '', // fallback if nature_of_work is missing
+        project_id: formData.project_id,
+        title: formData.title,
+        description: formData.description,
+        natureOfWork: formData.natureOfWork,
+        jobOrderNumber: formData.jobOrderNumber,
+        siteAddress: formData.siteAddress,
+        timeStart: formData.timeStart,
+        timeEnd: formData.timeEnd,
+        supervisorId: formData.supervisorId === null ? '' : formData.supervisorId,
+        driver_id: formData.driver_id,
+        personnelIds: formData.personnelIds,
       };
 
       const job = await assignJob(newJob);
@@ -179,50 +197,25 @@ const JobAssignments: React.FC = () => {
         message: `Job assigned successfully: ${formData.title}`,
         type: 'success',
         link: `/jobs/${job.id}`,
-        metadata: { jobId: job.id, type: 'job_assigned' }
       });
-
       setFormData(initialFormData);
-      setSnackbar({
-        open: true,
-        message: 'Job assigned successfully',
-        severity: 'success'
-      });
-
-      // If we came from a project page, go back there
-      if (router.query.projectId) {
-        router.push('/projects');
-      }
     } catch (error) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to assign job',
-        severity: 'error'
-      });
+      console.error('Error assigning job:', error);
+      showNotification({ type: 'error', message: 'Failed to assign job.' });
     }
   };
 
-  return (
-    <Box>
-      <Paper 
-        sx={{ 
-          p: 3, 
-          mb: 3,
-          borderTop: '4px solid',
-          borderColor: 'primary.main'
-        }}
-      >
-        <Typography variant="h5" gutterBottom color="primary.main">
-          Job Assignments
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Create and manage job assignments
-        </Typography>
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>Assign New Job</Typography>
+      <Paper elevation={3} sx={{ p: 3 }}>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
-            {/* Project Selection */}
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
                 <InputLabel>Project (Optional)</InputLabel>
                 <Select
@@ -242,7 +235,6 @@ const JobAssignments: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -256,9 +248,19 @@ const JobAssignments: React.FC = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                label="Job Description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
                 label="Nature of Work"
-                name="nature_of_work"
-                value={formData.nature_of_work}
+                name="natureOfWork"
+                value={formData.natureOfWork}
                 onChange={handleInputChange}
                 required
               />
@@ -267,8 +269,8 @@ const JobAssignments: React.FC = () => {
               <TextField
                 fullWidth
                 label="Job Order Number"
-                name="job_order_number"
-                value={formData.job_order_number}
+                name="jobOrderNumber"
+                value={formData.jobOrderNumber}
                 onChange={handleInputChange}
                 required
               />
@@ -277,8 +279,8 @@ const JobAssignments: React.FC = () => {
               <TextField
                 fullWidth
                 label="Site Address"
-                name="site_address"
-                value={formData.site_address}
+                name="siteAddress"
+                value={formData.siteAddress}
                 onChange={handleInputChange}
                 required
               />
@@ -287,67 +289,45 @@ const JobAssignments: React.FC = () => {
               <TextField
                 fullWidth
                 label="Start Time"
-                name="time_start"
+                name="timeStart"
                 type="datetime-local"
-                value={formData.time_start}
+                value={formData.timeStart}
                 onChange={handleInputChange}
                 required
-                InputLabelProps={{ shrink: true }}
+                InputLabelProps={{
+                  shrink: true,
+                }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="End Time"
-                name="time_end"
+                name="timeEnd"
                 type="datetime-local"
-                value={formData.time_end}
+                value={formData.timeEnd}
                 onChange={handleInputChange}
                 required
-                InputLabelProps={{ shrink: true }}
+                InputLabelProps={{
+                  shrink: true,
+                }}
               />
             </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth>
-                <InputLabel>Supervisor</InputLabel>
+                <InputLabel>Supervisor (Optional)</InputLabel>
                 <Select
-                  name="supervisor_id"
-                  value={formData.supervisor_id}
+                  name="supervisorId"
+                  value={formData.supervisorId || ''}
                   onChange={handleSelectChange}
-                  label="Supervisor"
-                  required
+                  label="Supervisor (Optional)"
                 >
-                  {managers.map(manager => (
-                    <MenuItem key={manager.id} value={manager.id}>
-                      {manager.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Personnel</InputLabel>
-                <Select
-                  multiple
-                  name="personnel_ids"
-                  value={formData.personnel_ids}
-                  onChange={handleSelectChange}
-                  label="Personnel"
-                  required
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {(selected as string[]).map((value) => {
-                        const person = personnel.find(p => p.id === value);
-                        return <Chip key={value} label={person?.name || value} />;
-                      })}
-                    </Box>
-                  )}
-                >
-                  {personnel.map((person) => (
-                    <MenuItem key={person.id} value={person.id}>
-                      <Checkbox checked={formData.personnel_ids.includes(person.id)} />
-                      <ListItemText primary={person.name} />
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {filteredUsers.filter(u => u.role === UserRole.MANAGER || u.role === UserRole.ADMIN || u.role === UserRole.MODERATOR).map(supervisor => (
+                    <MenuItem key={supervisor.id} value={supervisor.id}>
+                      {supervisor.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -365,7 +345,7 @@ const JobAssignments: React.FC = () => {
                   <MenuItem value="">
                     <em>None</em>
                   </MenuItem>
-                  {drivers.map(driver => (
+                  {filteredUsers.filter(u => u.position === 'Driver').map(driver => (
                     <MenuItem key={driver.id} value={driver.id}>
                       {driver.name}
                     </MenuItem>
@@ -373,36 +353,49 @@ const JobAssignments: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Personnel</InputLabel>
+                <Select
+                  multiple
+                  name="personnelIds"
+                  value={formData.personnelIds}
+                  onChange={handlePersonnelChange}
+                  label="Personnel"
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {(selected as string[]).map((value) => {
+                        const person = filteredUsers.find(p => p.id === value);
+                        return <Chip key={value} label={person?.name || value} />;
+                      })}
+                    </Box>
+                  )}
+                >
+                  {filteredUsers.filter(u => u.position !== 'Driver' && (u.role === UserRole.REGULAR || u.role === UserRole.MODERATOR)).map((person) => (
+                    <MenuItem key={person.id} value={person.id}>
+                      <Checkbox checked={formData.personnelIds.includes(person.id)} />
+                      {person.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
           </Grid>
 
-          <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              onClick={() => router.back()}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-            >
-              Assign Job
-            </Button>
-          </Box>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            sx={{ mt: 3 }}
+          >
+            Assign Job
+          </Button>
         </form>
       </Paper>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-      >
-        <Alert 
-          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

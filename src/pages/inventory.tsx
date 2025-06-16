@@ -74,17 +74,13 @@ const Inventory = () => {
     description: '',
     unit_price: 0,
     quantity: 0,
-    unit: null, // Initialize with null
-    category: null, // Initialize with null
+    unit: null,
+    category: null,
     supplier: null,
     status: 'in-stock',
   });
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => { setIsClient(true); }, []);
-  if (!isClient) return null;
 
   // Only allow managers, supervisors, or admins
   const allowedRoles = [UserRole.MANAGER, UserRole.MODERATOR, UserRole.ADMIN];
