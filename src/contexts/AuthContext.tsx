@@ -73,19 +73,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Login with ID number and password
   const login = async (idNumber: string, password: string): Promise<boolean> => {
     try {
-      console.log('Attempting login with ID:', idNumber);
+      console.log('Login attempt started:', { idNumber, timestamp: new Date().toISOString() });
       
       // Fetch the user's email and profile data in a single query
+      console.log('Fetching profile data...');
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('email, id, name, role, phone_number, position, profile_picture')
         .eq('id_number', idNumber)
         .single();
 
-      if (profileError || !profileData) {
-        console.error('Profile lookup error:', profileError);
+      if (profileError) {
+        console.error('Profile lookup error:', {
+          error: profileError,
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+          code: profileError.code
+        });
         return false;
       }
+
+      if (!profileData) {
+        console.error('No profile data found for ID number:', idNumber);
+        return false;
+      }
+
+      console.log('Profile found, attempting auth...', { 
+        email: profileData.email,
+        timestamp: new Date().toISOString()
+      });
 
       // Now, log in with the email and password
       const { data, error } = await supabase.auth.signInWithPassword({ 
@@ -93,10 +110,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         password 
       });
 
-      if (error || !data.user) {
-        console.error('Auth error:', error);
+      if (error) {
+        console.error('Auth error:', {
+          error,
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
         return false;
       }
+
+      if (!data.user) {
+        console.error('No user data returned from auth');
+        return false;
+      }
+
+      console.log('Auth successful, creating user object...', {
+        userId: data.user.id,
+        timestamp: new Date().toISOString()
+      });
 
       // Use the profile data we already have instead of fetching it again
       const user: User = {
@@ -111,9 +143,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
 
       setUser(user);
+      console.log('Login process completed successfully', {
+        userId: user.id,
+        timestamp: new Date().toISOString()
+      });
       return true;
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('Login error:', {
+        error: err,
+        message: err?.message,
+        stack: err?.stack,
+        timestamp: new Date().toISOString()
+      });
       return false;
     }
   };
