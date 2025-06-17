@@ -83,6 +83,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('API Route: Creating Supabase Auth user...');
       console.log('API Route: Using service role key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Present' : 'Missing');
       
+      console.log('API Route: Inspecting supabaseAdmin.auth:', supabaseAdmin.auth);
+      console.log('API Route: Inspecting supabaseAdmin.auth.admin:', supabaseAdmin.auth.admin);
+
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: id_number, // Use ID number as initial password
