@@ -2,6 +2,12 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto'; // Import randomUUID for generating IDs
 
+interface User {
+  id: string;
+  email: string;
+  // Add other properties if needed from the Supabase user object
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Initialize Supabase admin client inside the handler to ensure environment variables are loaded
   let supabaseAdmin: any;
@@ -59,26 +65,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let initialPassword = id_number; // Default initial password
 
     // First, check if a user with this email already exists
-    console.log('API Route: Inspecting supabaseAdmin.auth just before getUserByEmail:', supabaseAdmin.auth);
-    console.log('API Route: Inspecting supabaseAdmin.auth.admin just before getUserByEmail:', supabaseAdmin.auth.admin);
-    console.log('API Route: Type of supabaseAdmin.auth.admin:', typeof supabaseAdmin.auth.admin);
-    if (supabaseAdmin.auth.admin) {
-        console.log('API Route: Keys of supabaseAdmin.auth.admin:', Object.keys(supabaseAdmin.auth.admin));
-    }
+    console.log('API Route: Attempting to list users to check for existing email.');
+    const { data: usersData, error: listUsersError } = await supabaseAdmin.auth.admin.listUsers();
 
-    const { data: existingUserData, error: existingUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
-
-    if (existingUserError && existingUserError.message !== 'User not found') {
-      console.error('API Route: Error checking for existing user:', existingUserError);
-      return res.status(500).json({ 
-        error: `Failed to check for existing user: ${existingUserError.message}`,
-        details: existingUserError
+    if (listUsersError) {
+      console.error('API Route: Error listing users:', listUsersError);
+      return res.status(500).json({
+        error: `Failed to list users: ${listUsersError.message}`,
+        details: listUsersError
       });
     }
 
-    if (existingUserData?.user) {
-      console.log('API Route: Existing Auth user found with email:', email, 'ID:', existingUserData.user.id);
-      authUserId = existingUserData.user.id;
+    const existingUser = usersData?.users.find((user: User) => user.email === email);
+
+    if (existingUser) {
+      console.log('API Route: Existing Auth user found with email:', email, 'ID:', existingUser.id);
+      authUserId = existingUser.id;
       // If user exists, we don't create a new password, so initialPassword remains id_number (could be anything, won't be used for new user creation)
     } else {
       // No existing user, create a new one
@@ -151,7 +153,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (profileError) {
       console.error('API Route: Profile upsert error:', profileError);
       // Clean up the created auth user if profile upsert fails for a newly created user.
-      if (!existingUserData?.user) { 
+      if (!existingUser) { 
         await supabaseAdmin.auth.admin.deleteUser(authUserId);
         console.log('API Route: Cleaned up newly created auth user due to profile upsert error.');
       }
