@@ -2,39 +2,34 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto'; // Import randomUUID for generating IDs
 
-let supabaseAdmin: any; // Using 'any' for now to bypass strict typing during debugging
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Initialize Supabase admin client inside the handler to ensure environment variables are loaded
+  let supabaseAdmin: any;
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-try {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    console.log('API Route: Initializing Supabase admin client inside handler...');
+    console.log('API Route: Supabase URL (partial): ', supabaseUrl ? supabaseUrl.substring(0, 5) + '...' : 'Not found');
+    console.log('API Route: Service Role Key (partial): ', serviceRoleKey ? serviceRoleKey.substring(0, 5) + '...' + serviceRoleKey.substring(serviceRoleKey.length - 5) : 'Not found');
 
-  console.log('API Route: Initializing Supabase admin client...');
-  console.log('API Route: Supabase URL (partial): ', supabaseUrl ? supabaseUrl.substring(0, 5) + '...' : 'Not found');
-  console.log('API Route: Service Role Key (partial): ', serviceRoleKey ? serviceRoleKey.substring(0, 5) + '...' + serviceRoleKey.substring(serviceRoleKey.length - 5) : 'Not found');
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Missing Supabase environment variables for admin client.');
+    }
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing Supabase environment variables for admin client.');
+    supabaseAdmin = createClient(
+      supabaseUrl,
+      serviceRoleKey,
+      { auth: { autoRefreshToken: false, persistSession: false } } // Disable session features for server-side calls
+    );
+    console.log('API Route: Supabase admin client initialized successfully inside handler.');
+  } catch (initError: any) {
+    console.error('API Route: Error initializing Supabase admin client inside handler:', initError);
+    return res.status(500).json({ error: 'Server configuration error: Supabase admin client not ready.' });
   }
 
-  supabaseAdmin = createClient(
-    supabaseUrl,
-    serviceRoleKey,
-    { auth: { autoRefreshToken: false, persistSession: false } } // Disable session features for server-side calls
-  );
-  console.log('API Route: Supabase admin client initialized.');
-} catch (initError: any) {
-  console.error('API Route: Error initializing Supabase admin client:', initError);
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  // Check if supabaseAdmin was successfully initialized
-  if (!supabaseAdmin) {
-    console.error('API Route: Supabase admin client not initialized, cannot proceed.');
-    return res.status(500).json({ error: 'Server configuration error: Supabase admin client not ready.' });
   }
 
   const { email, name, role, phoneNumber, position, id_number } = req.body;
