@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   TextField, 
@@ -16,7 +16,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
-import logoSvg from '../assets/edgetech-logo.png';
+import Image from 'next/image';
 
 const Login = () => {
   const [idNumber, setIdNumber] = useState('');
@@ -26,6 +26,11 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+
+  // Construct the public URL for the logo from Supabase Storage
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const logoUrl = `${supabaseUrl}/storage/v1/object/public/public-images//Edgetech-logo.png`;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +85,7 @@ const Login = () => {
       >
         <Box
           component="img"
-          src={logoSvg}
+          src={logoUrl}
           alt="EdgeTech Logo"
           sx={{ 
             width: 280,
@@ -146,7 +151,17 @@ const Login = () => {
           </Button>
           
           <Typography variant="caption" color="text.secondary" align="center" display="block">
-            For testing, use ID: 1001-1004 with password: password
+            For testing, use one of these IDs:
+            <br />
+            Admin: 1001
+            <br />
+            Moderator: 1002
+            <br />
+            Manager: 1003
+            <br />
+            User: 1004
+            <br />
+            Password: password
           </Typography>
         </Box>
       </Paper>
