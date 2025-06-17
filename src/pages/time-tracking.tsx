@@ -56,53 +56,68 @@ const TimeTracking = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Generate some mock data for the last 30 days
+  // Fetch time records from Supabase
   useEffect(() => {
     if (!user) return;
 
-    // Generate mock time records for the past 30 days
-    const mockRecords: TimeRecord[] = [];
-    const today = new Date();
-    
-    // Generate one record per day for the last 30 days
-    for (let i = 29; i >= 0; i--) {
-      const recordDate = subDays(today, i);
-      const dateStr = format(recordDate, 'yyyy-MM-dd');
-      
-      // Skip weekends in our mock data
-      const dayOfWeek = recordDate.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-      
-      // Don't create a record for today yet
-      if (i === 0) continue;
-      
-      const timeIn = `${dateStr}T08:${Math.floor(Math.random() * 15) + 1}:00`;
-      const timeOut = `${dateStr}T17:${Math.floor(Math.random() * 30) + 1}:00`;
-      
-      mockRecords.push({
-        id: `record-${i}`,
-        user_id: user.id,
-        user_name: user.name,
-        timein: timeIn,
-        timeout: timeOut,
-        date: dateStr
-      });
-    }
-    
-    // Check if there's a record for today
-    const todayStr = format(today, 'yyyy-MM-dd');
-    const todayRecord = mockRecords.find(record => record.date === todayStr);
-    
-    // If there's a record for today with no timeout, the user is timed in
-    if (todayRecord && !todayRecord.timeout) {
-      setIsTimedIn(true);
-      setCurrentRecord(todayRecord);
-    } else {
-      setIsTimedIn(false);
-    }
-    
-    setTimeRecords(mockRecords);
-  }, [user]);
+    const fetchTimeRecords = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('time_tracking')
+          .select('*')
+          .eq('employee_id', user.id) // Assuming employee_id in time_tracking maps to user.id
+          .order('clock_in', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching time records:', error);
+          setSnackbarMessage('Failed to load time records');
+          setSnackbarSeverity('error');
+          setSnackbarOpen(true);
+          return;
+        }
+
+        const records: TimeRecord[] = data.map(record => ({
+          id: record.id,
+          user_id: record.employee_id,
+          user_name: user.name, // We can get this from the user context
+          timein: record.clock_in,
+          timeout: record.clock_out,
+          date: format(parseISO(record.clock_in), 'yyyy-MM-dd')
+        }));
+        setTimeRecords(records);
+
+        // Determine if user is currently timed in
+        const latestRecord = records[0];
+        if (latestRecord && !latestRecord.timeout) {
+          setIsTimedIn(true);
+          setCurrentRecord(latestRecord);
+        } else {
+          setIsTimedIn(false);
+          setCurrentRecord(null);
+        }
+
+      } catch (err) {
+        console.error('Unexpected error fetching time records:', err);
+        setSnackbarMessage('An unexpected error occurred while loading time records');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    };
+
+    fetchTimeRecords();
+
+    // Set up real-time subscription for time_tracking changes
+    const subscription = supabase
+      .channel('time_tracking_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_tracking', filter: `employee_id=eq.${user.id}` }, () => {
+        fetchTimeRecords();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]); // Re-run when user changes
 
   // Handle time in
   const handleTimeIn = async () => {
@@ -113,16 +128,14 @@ const TimeTracking = () => {
     const timeStr = format(now, 'yyyy-MM-dd\'T\'HH:mm:ss');
 
     const newRecord = {
-      user_id: user.id,
-      user_name: user.name,
-      timein: timeStr,
-      timeout: null,
-      date: dateStr
+      employee_id: user.id, // Use employee_id as per time_tracking table
+      clock_in: timeStr,
+      clock_out: null,
     };
 
     // Save to Supabase
     const { data, error } = await supabase
-      .from('time_records')
+      .from('time_tracking')
       .insert([newRecord])
       .select(); // Select the inserted data to get the correct id and other fields
 
@@ -140,11 +153,11 @@ const TimeTracking = () => {
       // Supabase generates the id, so we use the one returned from the insert operation
       const clientSideRecord: TimeRecord = {
          id: savedRecord.id,
-         user_id: savedRecord.user_id,
-         user_name: savedRecord.user_name,
-         timein: savedRecord.timein,
-         timeout: savedRecord.timeout,
-         date: savedRecord.date
+         user_id: savedRecord.employee_id,
+         user_name: user.name,
+         timein: savedRecord.clock_in,
+         timeout: savedRecord.clock_out,
+         date: format(parseISO(savedRecord.clock_in), 'yyyy-MM-dd')
       };
       setTimeRecords(prev => [clientSideRecord, ...prev]);
       setCurrentRecord(clientSideRecord);
@@ -169,8 +182,8 @@ const TimeTracking = () => {
 
     // Update in Supabase
     const { data, error } = await supabase
-      .from('time_records')
-      .update({ timeout: timeStr })
+      .from('time_tracking')
+      .update({ clock_out: timeStr })
       .eq('id', currentRecord.id)
       .select(); // Select the updated data
 
@@ -187,11 +200,11 @@ const TimeTracking = () => {
      if(updatedSavedRecord) {
        const clientSideUpdatedRecord: TimeRecord = {
          id: updatedSavedRecord.id,
-         user_id: updatedSavedRecord.user_id,
-         user_name: updatedSavedRecord.user_name,
-         timein: updatedSavedRecord.timein,
-         timeout: updatedSavedRecord.timeout,
-         date: updatedSavedRecord.date
+         user_id: updatedSavedRecord.employee_id,
+         user_name: user?.name || '',
+         timein: updatedSavedRecord.clock_in,
+         timeout: updatedSavedRecord.clock_out,
+         date: format(parseISO(updatedSavedRecord.clock_in), 'yyyy-MM-dd')
        };
       setTimeRecords(prev =>
         prev.map(record =>
