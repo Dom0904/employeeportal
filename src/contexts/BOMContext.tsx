@@ -33,7 +33,7 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Construct the public URL for the logo from Supabase Storage
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const logoUrl = `${supabaseUrl}/storage/v1/object/public/public-images//logo.png`;
+  const logoUrl = `${supabaseUrl}/storage/v1/object/public/public-images/logo.png`;
 
   // Extracted fetchBOMs into a useCallback hook
   const fetchBOMs = useCallback(async () => {
