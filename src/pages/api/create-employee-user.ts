@@ -59,6 +59,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let initialPassword = id_number; // Default initial password
 
     // First, check if a user with this email already exists
+    console.log('API Route: Inspecting supabaseAdmin.auth just before getUserByEmail:', supabaseAdmin.auth);
+    console.log('API Route: Inspecting supabaseAdmin.auth.admin just before getUserByEmail:', supabaseAdmin.auth.admin);
+    console.log('API Route: Type of supabaseAdmin.auth.admin:', typeof supabaseAdmin.auth.admin);
+    if (supabaseAdmin.auth.admin) {
+        console.log('API Route: Keys of supabaseAdmin.auth.admin:', Object.keys(supabaseAdmin.auth.admin));
+    }
+
     const { data: existingUserData, error: existingUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
 
     if (existingUserError && existingUserError.message !== 'User not found') {
