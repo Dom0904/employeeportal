@@ -43,14 +43,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Unauthorized: Incorrect password.' });
     }
 
-    // Proceed with deleting the user via the admin client
+    console.log('API Route (delete-employee): Attempting to delete user with ID:', employeeId);
     const { error: deleteUserError } = await supabaseAdmin.auth.admin.deleteUser(employeeId);
 
     if (deleteUserError) {
-      console.error('API Route (delete-employee): Error deleting user:', deleteUserError);
-      return res.status(500).json({ error: deleteUserError.message || 'Failed to delete employee user.' });
+      console.error('API Route (delete-employee): Detailed error deleting user:', deleteUserError);
+      return res.status(500).json({ error: deleteUserError.message || 'Failed to delete employee user.', details: deleteUserError });
     }
 
+    console.log('API Route (delete-employee): User deleted successfully.', employeeId);
     // Optionally, delete the profile row as well if it's not automatically handled by a trigger/cascade
     // For now, assuming foreign key constraint handles it, as per previous discussion.
 
