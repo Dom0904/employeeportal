@@ -21,6 +21,7 @@ import {
 import {
   Search as SearchIcon
 } from '@mui/icons-material';
+import { supabase } from '../supabaseClient';
 
 // Employee status types
 type EmployeeStatus = 'active' | 'off duty' | 'on leave';
@@ -37,118 +38,96 @@ interface Employee {
 }
 
 const EmployeeStatusPage = () => {
-  const [employees, setEmployees] = useState<Employee[]>([
-    {
-      id: '1',
-      idNumber: '1001',
-      name: 'John Doe',
-      jobPosition: 'Senior Engineer',
-      department: 'Engineering',
-      status: 'active',
-      lastActive: new Date().toISOString()
-    },
-    {
-      id: '2',
-      idNumber: '1002',
-      name: 'Jane Smith',
-      jobPosition: 'Project Manager',
-      department: 'Management',
-      status: 'active',
-      lastActive: new Date().toISOString()
-    },
-    {
-      id: '3',
-      idNumber: '1003',
-      name: 'Bob Johnson',
-      jobPosition: 'Technician',
-      department: 'Operations',
-      status: 'off duty',
-      lastActive: new Date(Date.now() - 86400000).toISOString() // 1 day ago
-    },
-    {
-      id: '4',
-      idNumber: '1004',
-      name: 'Alice Williams',
-      jobPosition: 'HR Specialist',
-      department: 'Human Resources',
-      status: 'on leave',
-      lastActive: new Date(Date.now() - 7 * 86400000).toISOString() // 7 days ago
-    },
-    {
-      id: '5',
-      idNumber: '1005',
-      name: 'Charlie Brown',
-      jobPosition: 'Sales Representative',
-      department: 'Sales',
-      status: 'active',
-      lastActive: new Date().toISOString()
-    }
-  ]);
-  
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>(employees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  const departments = [...new Set(employees.map(emp => emp.department))];
-
-  // Apply filters when any filter changes
+  // Fetch employees from profiles table
   useEffect(() => {
-    let result = [...employees];
-    
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      result = result.filter(emp => emp.status === statusFilter);
-    }
-    
-    // Apply department filter
-    if (departmentFilter !== 'all') {
-      result = result.filter(emp => emp.department === departmentFilter);
-    }
-    
-    // Apply search query
+    const fetchEmployees = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('name');
+
+        if (error) throw error;
+
+        const employeeData: Employee[] = data.map(profile => ({
+          id: profile.id,
+          idNumber: profile.id_number || '',
+          name: profile.name,
+          jobPosition: profile.position || '',
+          department: profile.department || 'General',
+          status: (profile.status as EmployeeStatus) || 'active',
+          lastActive: profile.last_active || new Date().toISOString()
+        }));
+
+        setEmployees(employeeData);
+        setFilteredEmployees(employeeData);
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
+
+  // Update filtered employees when filters change
+  useEffect(() => {
+    let filtered = employees;
+
+    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(emp => 
-        emp.name.toLowerCase().includes(query) || 
+      filtered = filtered.filter(emp => 
+        emp.name.toLowerCase().includes(query) ||
         emp.idNumber.toLowerCase().includes(query) ||
-        emp.jobPosition.toLowerCase().includes(query)
+        emp.jobPosition.toLowerCase().includes(query) ||
+        emp.department.toLowerCase().includes(query)
       );
     }
-    
-    setFilteredEmployees(result);
-  }, [employees, statusFilter, departmentFilter, searchQuery]);
 
-  // Format last active time
-  const formatLastActive = (lastActive?: string) => {
-    if (!lastActive) return 'Never';
-    
-    const date = new Date(lastActive);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      return 'Today';
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else {
-      return `${diffDays} days ago`;
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(emp => emp.status === statusFilter);
     }
-  };
 
-  // Get status chip color
+    // Apply department filter
+    if (departmentFilter !== 'all') {
+      filtered = filtered.filter(emp => emp.department === departmentFilter);
+    }
+
+    setFilteredEmployees(filtered);
+  }, [employees, searchQuery, statusFilter, departmentFilter]);
+
+  const departments = [...new Set(employees.map(emp => emp.department))];
+
   const getStatusColor = (status: EmployeeStatus) => {
     switch (status) {
       case 'active':
         return 'success';
       case 'off duty':
-        return 'default';
-      case 'on leave':
         return 'warning';
+      case 'on leave':
+        return 'error';
       default:
         return 'default';
     }
+  };
+
+  const formatLastActive = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    if (diffInHours < 48) return 'Yesterday';
+    return date.toLocaleDateString();
   };
 
   return (
