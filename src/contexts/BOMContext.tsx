@@ -31,6 +31,10 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const { items: inventoryItems } = useInventory();
   const { showNotification } = useNotifications();
 
+  // Construct the public URL for the logo from Supabase Storage
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const logoUrl = `${supabaseUrl}/storage/v1/object/public/public-images/logo.png`;
+
   // Extracted fetchBOMs into a useCallback hook
   const fetchBOMs = useCallback(async () => {
     // Get all BOMs
@@ -248,15 +252,16 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const exportBOMToPDF = useCallback(async (id: string) => {
     const bom = getBOMById(id);
+
     if (!bom) {
-      throw new Error('BOM not found');
+      showNotification({ type: 'error', message: 'BOM not found for export' });
+      return;
     }
 
-    // Create new jsPDF instance
     const doc = new jsPDF();
-
-    // Add EdgeTech Logo
-    const imgData = '/images/edgetech_logo.png.png';
+    
+    // Add EdgeTech Logo from Supabase Storage
+    const imgData = logoUrl; // Use the dynamically constructed logo URL
     const logoHeight = 20; // Define logo height for calculation
     const logoWidth = 50;
     const logoX = 14;
@@ -265,23 +270,22 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let currentY = logoY + logoHeight + 15; // Start text below logo with more padding
 
-    // Add title and metadata
     doc.setFontSize(18);
     doc.text(`Bill of Materials: ${bom.title}`, 14, currentY);
-    currentY += 10; // Increment for next line (larger for title)
-
+    currentY += 10;
     doc.setFontSize(12);
-    doc.text(`Description: ${bom.description || 'N/A'}`, 14, currentY);
+    doc.text(`Project ID: ${bom.projectId}`, 14, currentY);
     currentY += 7;
-
-    doc.text(`Category: ${bom.category || 'N/A'}`, 14, currentY);
+    doc.text(`Description: ${bom.description}`, 14, currentY);
     currentY += 7;
-
-    doc.text(`Author: ${bom.author || 'N/A'}`, 14, currentY);
+    doc.text(`Category: ${bom.category}`, 14, currentY);
     currentY += 7;
-
-    doc.text(`Project ID: ${bom.projectId || 'N/A'}`, 14, currentY);
+    doc.text(`Author: ${bom.author}`, 14, currentY);
     currentY += 7;
+    doc.text(`Created At: ${formatDate(bom.createdAt)}`, 14, currentY);
+    currentY += 7;
+    doc.text(`Updated At: ${formatDate(bom.updatedAt)}`, 14, currentY);
+    currentY += 15;
 
     // Date formatting helper function
     const formatDate = (dateString: string | undefined | null) => {
@@ -290,45 +294,51 @@ export const BOMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
     };
 
-    doc.text(`Created: ${formatDate(bom.createdAt)}`, 14, currentY);
-    currentY += 7;
+    // Check if items array is empty
+    if (bom.items.length === 0) {
+      doc.setFontSize(12);
+      doc.text('No items in this BOM.', 14, currentY);
+      currentY += 10; // Adjust Y position for next content
+    } else {
+      // Prepare table data for items
+      const tableColumn = ["Item ID", "Description", "Category", "Supplier", "Quantity", "Unit"];
+      const tableRows: any[] = [];
 
-    doc.text(`Last Updated: ${formatDate(bom.updatedAt)}`, 14, currentY);
-    currentY += 15; // Add more space before the table
+      bom.items.forEach(item => {
+        const itemData = [
+          item.inventoryitemid,
+          item.description || 'N/A',
+          item.category || 'N/A',
+          item.supplier || 'N/A',
+          item.quantity,
+          item.unit || 'N/A',
+        ];
+        tableRows.push(itemData);
+      });
 
-    // Prepare data for the table
-    const tableColumn = ["Item No.", "Item", "Description", "Unit", "Category", "Supplier", "Quantity"];
-    const tableRows = bom.items.map((item, index) => [
-      index + 1,
-      item.inventoryDetails?.product_name || 'N/A',
-      item.description || 'N/A',
-      item.unit || 'N/A',
-      item.category || 'N/A',
-      item.supplier || 'N/A',
-      item.quantity,
-    ]);
-
-    // Add table using autoTable
-    (doc as any).autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: currentY, // Use dynamically calculated Y
-      headStyles: { fillColor: [94, 46, 142], textColor: 255, fontStyle: 'bold' }, // EdgeTech Purple and White
-      styles: { fontSize: 9, textColor: [50, 50, 50] },
-      columnStyles: {
-        0: { cellWidth: 15 }, // Item No.
-        1: { cellWidth: 30 }, // Item
-        2: { cellWidth: 40 }, // Description
-        3: { cellWidth: 15 }, // Unit
-        4: { cellWidth: 25 }, // Category
-        5: { cellWidth: 25 }, // Supplier
-        6: { cellWidth: 20 }, // Quantity
-      }
-    });
+      // Add the table to the PDF
+      (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: currentY,
+        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [75, 75, 75], textColor: [255, 255, 255] },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        margin: { top: 10, left: 14, right: 14 },
+        didDrawPage: function (data: any) {
+          // Footer
+          var str = 'Page ' + (doc as any).internal.getNumberOfPages();
+          doc.setFontSize(10);
+          doc.text(str, data.settings.margin.left, (doc as any).internal.pageSize.height - 10);
+        },
+      });
+      currentY = (doc as any).autoTable.previous.finalY + 10; // Update currentY after table
+    }
 
     // Save the PDF
-    doc.save(`BOM_${bom.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+    doc.save(`BOM_${bom.title}.pdf`);
     showNotification({ type: 'success', message: 'BOM exported to PDF successfully' });
+
   }, [getBOMById, showNotification]);
 
   const exportBOMToCSV = useCallback(async (id: string) => {
