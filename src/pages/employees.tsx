@@ -196,36 +196,33 @@ const EmployeeList = () => {
       return;
     }
 
-    // Verify the admin's password before proceeding
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
-        password: passwordConfirmation,
+      const response = await fetch('/api/delete-employee', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employeeId: selectedEmployee.id,
+          adminEmail: user.email,
+          adminPassword: passwordConfirmation,
+        }),
       });
 
-      if (signInError) {
-        console.error('API Route: Password verification failed:', signInError);
-        showSnackbar('Incorrect password. Deletion failed.', 'error');
-        return; // Stop execution if password verification fails
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete employee');
       }
-    } catch (error) {
-      console.error('Unexpected error during password verification:', error);
-      showSnackbar('An unexpected error occurred during password verification.', 'error');
-      return;
-    }
 
-    try {
-      // First delete the auth user
-      const { error: authError } = await supabase.auth.admin.deleteUser(selectedEmployee.id);
-      if (authError) throw authError;
-
-      // The profile will be deleted automatically by the foreign key constraint
       showSnackbar('Employee deleted successfully', 'success');
       handleDeleteDialogClose();
       fetchEmployees();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting employee:', error);
-      showSnackbar('Failed to delete employee', 'error');
+      showSnackbar(error.message || 'Failed to delete employee', 'error');
+    } finally {
+      setPasswordConfirmation(''); // Clear password field after attempt
     }
   };
 
