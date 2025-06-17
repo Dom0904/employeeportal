@@ -75,7 +75,7 @@ const EmployeeList = () => {
   const fetchEmployees = async () => {
     try {
       const { data, error } = await supabase
-        .from('employee_list')
+        .from('profiles')
         .select('*')
         .order('name');
 
