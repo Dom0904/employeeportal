@@ -41,6 +41,23 @@ import { useAuth } from '../contexts/AuthContext';
 interface Employee extends User {
   jobPosition?: string;
   department?: string;
+  status?: string;
+  dateHired?: string | null;
+}
+
+// Define a type for the data coming directly from the 'profiles' table
+interface ProfileData {
+  id: string;
+  id_number: string;
+  name: string;
+  email: string;
+  phone_number?: string;
+  position?: string;
+  role?: UserRole; // Assuming role is also stored in profiles or derived
+  profile_picture?: string;
+  department?: string;
+  status?: string;
+  date_hired?: string | null;
 }
 
 const EmployeeList = () => {
@@ -63,6 +80,7 @@ const EmployeeList = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+  const [passwordConfirmation, setPasswordConfirmation] = useState<string>('');
 
   // Check if user has admin role
   useEffect(() => {
@@ -84,14 +102,14 @@ const EmployeeList = () => {
 
       if (error) throw error;
 
-      const employeeData: Employee[] = data.map(profile => ({
+      const employeeData: Employee[] = data.map((profile: ProfileData) => ({
         id: profile.id,
         id_number: profile.id_number,
         name: profile.name,
         email: profile.email,
         phoneNumber: profile.phone_number || '',
         position: profile.position || '',
-        role: profile.role || 'regular',
+        role: profile.role || UserRole.REGULAR,
         profilePicture: profile.profile_picture || undefined,
         jobPosition: profile.position || '',
         department: profile.department || '',
@@ -173,6 +191,29 @@ const EmployeeList = () => {
   const handleDeleteEmployee = async () => {
     if (!selectedEmployee) return;
 
+    if (!user) {
+      showSnackbar('Error: No authenticated user found.', 'error');
+      return;
+    }
+
+    // Verify the admin's password before proceeding
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: passwordConfirmation,
+      });
+
+      if (signInError) {
+        console.error('API Route: Password verification failed:', signInError);
+        showSnackbar('Incorrect password. Deletion failed.', 'error');
+        return; // Stop execution if password verification fails
+      }
+    } catch (error) {
+      console.error('Unexpected error during password verification:', error);
+      showSnackbar('An unexpected error occurred during password verification.', 'error');
+      return;
+    }
+
     try {
       // First delete the auth user
       const { error: authError } = await supabase.auth.admin.deleteUser(selectedEmployee.id);
@@ -192,7 +233,7 @@ const EmployeeList = () => {
     e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<UserRole>
   ) => {
     const { name, value } = e.target;
-    setNewEmployee(prev => ({
+    setNewEmployee((prev: Partial<Employee>) => ({
       ...prev,
       [name as string]: value
     }));
@@ -303,7 +344,7 @@ const EmployeeList = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {employees.map((employee) => (
+            {employees.map((employee: Employee) => (
               <TableRow key={employee.id}>
                 <TableCell>{employee.id_number}</TableCell>
                 <TableCell>{employee.name}</TableCell>
@@ -437,8 +478,20 @@ const EmployeeList = () => {
         <DialogContent>
           <DialogContentText>
             Are you sure you want to remove {selectedEmployee?.name} from the employee list?
-            This action cannot be undone.
+            This action cannot be undone. Please confirm by entering your password.
           </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="passwordConfirmation"
+            label="Your Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={passwordConfirmation}
+            onChange={(e) => setPasswordConfirmation(e.target.value)}
+            sx={{ mt: 2 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteDialogClose}>Cancel</Button>
