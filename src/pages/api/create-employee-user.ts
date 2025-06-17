@@ -64,10 +64,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('API Route: Creating Supabase Auth user...');
     console.log('API Route: Using service role key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Present' : 'Missing');
     
-    // Create the user with email/password
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: id_number,
+      password: id_number, // Use ID number as initial password
       email_confirm: true,
       user_metadata: {
         name,
@@ -94,61 +93,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to create auth user: No user ID returned' });
     }
 
-    // Link the identity to the user
-    const { error: linkError } = await supabaseAdmin.auth.admin.linkIdentity({
-      user_id: userData.user.id,
-      identity_data: {
-        sub: userData.user.id,
-        email: email
-      },
-      provider: 'email'
-    });
-
-    if (linkError) {
-      console.error('API Route: Error linking identity:', linkError);
-      // Clean up the created user if linking fails
-      await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-      return res.status(500).json({ 
-        error: `Failed to link identity: ${linkError.message}`,
-        details: linkError
-      });
-    }
-
-    console.log('API Route: Auth user created and linked successfully:', {
+    console.log('API Route: Auth user created successfully:', {
       id: userData.user.id,
       email: userData.user.email,
       confirmed: userData.user.email_confirmed_at
     });
 
     // Then, create the employee record
-    const employeeDataToInsert = {
-      id: userData.user.id, // Use the auth user's ID
-      name: name.trim(),
-      role,
-      email,
-      phone_number: phoneNumber?.trim() || null,
-      position: position?.trim() || null,
-      id_number: id_number.trim(),
-    };
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert([
+        {
+          id: userData.user.id,
+          name,
+          role,
+          email,
+          phone_number: phoneNumber,
+          position,
+          id_number
+        }
+      ]);
 
-    console.log('API Route: Creating employee record:', employeeDataToInsert);
-    const { error: insertError } = await supabaseAdmin.from('employee_list').insert([
-      employeeDataToInsert,
-    ]);
-
-    if (insertError) {
-      // If employee record creation fails, delete the auth user
-      console.error('API Route: Error creating employee record:', insertError);
+    if (profileError) {
+      console.error('API Route: Profile creation error:', profileError);
+      // Clean up the created user if profile creation fails
       await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-      return res.status(500).json({ error: `Failed to create employee record: ${insertError.message}` });
+      return res.status(500).json({ 
+        error: `Failed to create profile: ${profileError.message}`,
+        details: profileError
+      });
     }
 
-    console.log('API Route: Employee created successfully!');
     return res.status(200).json({ 
-      message: 'Employee created successfully!',
-      userId: userData.user.id,
-      email: userData.user.email,
-      initialPassword: id_number // Send back the initial password for admin reference
+      message: 'Employee created successfully',
+      initialPassword: id_number
     });
 
   } catch (error: any) {
