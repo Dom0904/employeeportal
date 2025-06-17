@@ -40,6 +40,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface Employee extends User {
   jobPosition?: string;
+  department?: string;
 }
 
 const EmployeeList = () => {
@@ -48,6 +49,7 @@ const EmployeeList = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [newEmployee, setNewEmployee] = useState<Partial<Employee>>({
     name: '',
@@ -57,6 +59,7 @@ const EmployeeList = () => {
     role: UserRole.REGULAR,
     position: ''
   });
+  const [editForm, setEditForm] = useState<Partial<Employee>>({});
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
@@ -224,6 +227,48 @@ const EmployeeList = () => {
     setSelectedEmployee(null);
   };
 
+  const handleEditClick = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setEditForm({
+      name: employee.name,
+      position: employee.position,
+      department: employee.department,
+      email: employee.email,
+      phoneNumber: employee.phoneNumber
+    });
+    setOpenEditDialog(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!selectedEmployee) return;
+
+    try {
+      const response = await fetch('/api/update-employee', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedEmployee.id,
+          updates: {
+            name: editForm.name,
+            position: editForm.position,
+            department: editForm.department,
+            email: editForm.email,
+            phone_number: editForm.phoneNumber
+          }
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to update employee');
+
+      showSnackbar('Employee updated successfully', 'success');
+      setOpenEditDialog(false);
+      fetchEmployees();
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      showSnackbar('Failed to update employee', 'error');
+    }
+  };
+
   if (!user || user.role !== UserRole.ADMIN) {
     return null;
   }
@@ -267,6 +312,15 @@ const EmployeeList = () => {
                 <TableCell>{employee.phoneNumber}</TableCell>
                 <TableCell>{employee.role}</TableCell>
                 <TableCell align="center">
+                  <Tooltip title="Edit">
+                    <IconButton
+                      onClick={() => handleEditClick(employee)}
+                      size="small"
+                      color="primary"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Delete">
                     <IconButton
                       onClick={() => handleDeleteDialogOpen(employee)}
@@ -390,6 +444,51 @@ const EmployeeList = () => {
           <Button onClick={handleDeleteDialogClose}>Cancel</Button>
           <Button onClick={handleDeleteEmployee} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Employee Dialog */}
+      <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Employee Profile</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+            <TextField
+              label="Name"
+              value={editForm.name || ''}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Position"
+              value={editForm.position || ''}
+              onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Department"
+              value={editForm.department || ''}
+              onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Email"
+              value={editForm.email || ''}
+              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Phone Number"
+              value={editForm.phoneNumber || ''}
+              onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
+              fullWidth
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
+          <Button onClick={handleEditSave} variant="contained" color="primary">
+            Save
           </Button>
         </DialogActions>
       </Dialog>

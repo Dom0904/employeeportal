@@ -127,13 +127,12 @@ const navigationGroups = [
     ]
   },
   {
-    groupName: 'Management',
+    groupName: 'HR',
     icon: <BusinessIcon />,
     items: [
       { text: 'Employee List', icon: <PeopleIcon />, path: '/employees', roles: [UserRole.ADMIN] },
       { text: 'Employee Status', icon: <AssignmentIcon />, path: '/employee-status', roles: [UserRole.ADMIN, UserRole.MODERATOR] },
       { text: 'Announcements', icon: <AnnouncementIcon />, path: '/announcements', roles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.MANAGER, UserRole.REGULAR] },
-      { text: 'Project Management', icon: <AssignmentIcon />, path: '/projects', roles: [UserRole.ADMIN, UserRole.MANAGER] }
     ]
   },
   {

@@ -39,6 +39,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Fetch user profile from Supabase
   const fetchUserProfile = async (userId: string): Promise<User | null> => {
@@ -46,25 +47,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error, status } = await supabase.from('profiles').select('*').eq('id', userId).single();
       console.log('fetchUserProfile status:', status, 'data:', data, 'error:', error);
       if (error) {
-        alert('Error fetching profile: ' + error.message);
+        console.error('Error fetching profile:', error.message);
         return null;
       }
       if (!data) {
-        alert('No profile data found for user. Check if the profiles table has a row with the correct id.');
+        console.warn('No profile data found for user:', userId, '. Check if the profiles table has a row with the correct id.');
         return null;
       }
       return {
         id: data.id,
-        id_number: data.id_number,
-        name: data.name,
+        id_number: data.id_number || '',
+        name: data.name || '',
         role: data.role as UserRole,
-        email: data.email,
-        phoneNumber: data.phone_number,
-        position: data.position,
+        email: data.email || '',
+        phoneNumber: data.phone_number || '',
+        position: data.position || '',
         profilePicture: data.profile_picture || undefined,
       };
     } catch (err: any) {
-      alert('Unexpected error fetching profile: ' + (err?.message || err));
+      console.error('Unexpected error fetching profile:', (err?.message || err));
       return null;
     }
   };
@@ -79,7 +80,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('Fetching profile data...');
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('email, id, name, role, phone_number, position, profile_picture')
+        .select('email, id, name, role, phone_number, position, profile_picture, id_number')
         .eq('id_number', idNumber)
         .single();
 
@@ -133,12 +134,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Use the profile data we already have instead of fetching it again
       const user: User = {
         id: profileData.id,
-        id_number: idNumber,
-        name: profileData.name,
+        id_number: profileData.id_number || '',
+        name: profileData.name || '',
         role: profileData.role as UserRole,
-        email: profileData.email,
-        phoneNumber: profileData.phone_number,
-        position: profileData.position,
+        email: profileData.email || '',
+        phoneNumber: profileData.phone_number || '',
+        position: profileData.position || '',
         profilePicture: profileData.profile_picture || undefined,
       };
 
@@ -183,113 +184,208 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Logout
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
-
-  // Update profile
-  const updateUserProfile = async (updatedUser: User) => {
-    setUser(updatedUser);
-    await supabase.from('profiles').update({
-      name: updatedUser.name,
-      role: updatedUser.role,
-      email: updatedUser.email,
-      phone_number: updatedUser.phoneNumber,
-      position: updatedUser.position,
-      profile_picture: updatedUser.profilePicture || null,
-    }).eq('id', updatedUser.id);
-  };
-
-  // Password verification is not needed; handled by Supabase Auth
-  const verifyPassword = async (_password: string) => true;
-
-  // Get all users
-  const getAllUsers = useCallback(async (): Promise<User[]> => {
+  const logout = async (): Promise<void> => {
+    console.log('Logout initiated.');
     try {
-      const { data, error } = await supabase.from('profiles').select('id, name, id_number, role, position');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+        throw error;
+      }
+      setUser(null);
+      console.log('Logout successful, user state cleared.');
+    } catch (err) {
+      console.error('Unexpected error during logout:', err);
+    }
+  };
+
+  // Update user profile
+  const updateUserProfile = async (updatedUser: User) => {
+    if (!user) {
+      console.error('No user logged in to update profile.');
+      return;
+    }
+
+    try {
+      const updates = {
+        name: updatedUser.name,
+        role: updatedUser.role,
+        email: updatedUser.email,
+        phone_number: updatedUser.phoneNumber,
+        position: updatedUser.position,
+        profile_picture: updatedUser.profilePicture,
+        id_number: updatedUser.id_number,
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating user profile:', error);
+        throw error;
+      }
+
+      // Update local user state after successful update
+      setUser(updatedUser);
+      console.log('User profile updated successfully!');
+    } catch (err) {
+      console.error('Unexpected error updating profile:', err);
+    }
+  };
+
+  const verifyPassword = async (password: string): Promise<boolean> => {
+    if (!user || !user.email) {
+      console.warn('Cannot verify password: User not logged in or email missing.');
+      return false;
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password,
+      });
+
+      if (error) {
+        console.error('Password verification failed:', error);
+        return false;
+      }
+      // If no error, sign-in was successful, so password is valid
+      return true;
+    } catch (err) {
+      console.error('Unexpected error during password verification:', err);
+      return false;
+    }
+  };
+
+  const getAllUsers = async (): Promise<User[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, id_number, name, role, email, phone_number, position, profile_picture');
+
       if (error) {
         console.error('Error fetching all users:', error);
         return [];
       }
+
       return data.map(profile => ({
         id: profile.id,
-        name: profile.name,
         id_number: profile.id_number || '',
+        name: profile.name || '',
         role: profile.role as UserRole,
-        email: '',
-        phoneNumber: '',
+        email: profile.email || '',
+        phoneNumber: profile.phone_number || '',
         position: profile.position || '',
+        profilePicture: profile.profile_picture || undefined,
       }));
-    } catch (error) {
-      console.error('Unexpected error fetching all users:', error);
+    } catch (err) {
+      console.error('Unexpected error fetching all users:', err);
       return [];
     }
-  }, []);
+  };
 
-  // On mount, get current session and profile
+  // Effect to handle initial session and auth state changes
   useEffect(() => {
-    const getSession = async () => {
-      console.log('AuthContext: Attempting to get user session');
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error('AuthContext: Error getting user session:', error);
-        setUser(null);
-        return;
-      }
-      console.log('AuthContext: getUser data:', data);
-      if (data.user) {
-        console.log('AuthContext: User found, fetching profile for ID:', data.user.id);
-        const profile = await fetchUserProfile(data.user.id);
-        if (profile) {
-          console.log('AuthContext: Profile fetched:', profile);
-          console.log('AuthContext: Fetched User Role:', profile.role);
-          setUser(profile);
-        } else {
-          console.log('AuthContext: Profile not found for user ID:', data.user.id);
-          setUser(null); // Ensure user is null if profile not found
+    console.log('AuthContext useEffect triggered for session monitoring.');
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('AuthContext: Auth state change detected:', event, session ? 'Session present' : 'No session');
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+          if (session?.user) {
+            console.log('AuthContext: Auth state change user found, fetching profile for ID:', session.user.id);
+            const profile = await fetchUserProfile(session.user.id);
+            if (profile) {
+              console.log('AuthContext: Auth state change profile fetched:', profile);
+              const userRole = profile.role as UserRole;
+              console.log('AuthContext: Auth State Change Fetched User Role:', userRole);
+              setUser({
+                id: session.user.id,
+                id_number: profile.id_number || '',
+                name: profile.name,
+                role: userRole,
+                email: session.user.email || '',
+                phoneNumber: profile.phoneNumber || '',
+                position: profile.position || '',
+                profilePicture: profile.profilePicture || undefined,
+              });
+            } else {
+              console.warn('AuthContext: Auth state change profile not found for user ID:', session.user.id);
+              setUser(null); // Clear user if profile not found
+            }
+          } else {
+            console.log('AuthContext: Auth state change no user session');
+            setUser(null);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log('AuthContext: User signed out.');
+          setUser(null);
         }
-      } else {
-        console.log('AuthContext: No user session found');
-        setUser(null);
       }
-    };
-    getSession();
-    // Listen for auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
-      console.log('AuthContext: Auth state change detected:', event, session);
-      if (session?.user) {
-        console.log('AuthContext: Auth state change user found, fetching profile for ID:', session.user.id);
+    );
+
+    // Initial session check (important for SSR or initial load)
+    const getInitialSession = async () => {
+      console.log('AuthContext: Attempting to get initial session...');
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('AuthContext: Error getting user session:', error.message);
+        setUser(null);
+      } else if (session?.user) {
+        console.log('AuthContext: Initial session found, fetching profile...', session.user.id);
         const profile = await fetchUserProfile(session.user.id);
         if (profile) {
-          console.log('AuthContext: Auth state change profile fetched:', profile);
-          console.log('AuthContext: Auth State Change Fetched User Role:', profile.role);
-          setUser(profile);
+          const userRole = profile.role as UserRole;
+          setUser({
+            id: session.user.id,
+            id_number: profile.id_number || '',
+            name: profile.name,
+            role: userRole,
+            email: session.user.email || '',
+            phoneNumber: profile.phoneNumber || '',
+            position: profile.position || '',
+            profilePicture: profile.profilePicture || undefined,
+          });
+          console.log('AuthContext: Initial session profile set.');
         } else {
-          console.log('AuthContext: Auth state change profile not found for user ID:', session.user.id);
-          setUser(null); // Ensure user is null if profile not found
+          console.warn('AuthContext: Initial session, but profile not found. Clearing user.');
+          setUser(null); // Clear user if profile not found for initial session
         }
       } else {
-        console.log('AuthContext: Auth state change no user session');
+        console.log('AuthContext: No initial session found.');
         setUser(null);
       }
-    });
-    return () => { listener.subscription.unsubscribe(); };
-  }, []);
+      setLoading(false);
+      console.log('AuthContext: Initial session check complete.');
+    };
+
+    getInitialSession();
+
+    return () => {
+      console.log('AuthContext: Cleaning up auth listener.');
+      authListener.subscription.unsubscribe();
+    };
+  }, []); // Empty dependency array means this runs once on mount
+
+  const isAuthenticated = !!user;
+
+  const value = {
+    user,
+    login,
+    register,
+    logout,
+    isAuthenticated,
+    updateUserProfile,
+    verifyPassword,
+    getAllUsers,
+    loading, // Expose loading state
+  };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      login,
-      logout,
-      isAuthenticated: !!user,
-      updateUserProfile,
-      verifyPassword,
-      // Optionally expose register
-      register,
-      getAllUsers,
-    }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children} {/* Render children only when authentication is loaded */}
     </AuthContext.Provider>
   );
 };

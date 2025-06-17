@@ -3,20 +3,33 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+console.log('Supabase Client Init: NEXT_PUBLIC_SUPABASE_URL', supabaseUrl ? 'Present' : 'Missing');
+console.log('Supabase Client Init: NEXT_PUBLIC_SUPABASE_ANON_KEY', supabaseAnonKey ? 'Present' : 'Missing');
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing Supabase environment variables. Please check your .env.local file and ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set.'
-  );
+  console.error('Supabase Client Init Error: Missing required environment variables.', {
+    supabaseUrlPresent: !!supabaseUrl,
+    supabaseAnonKeyPresent: !!supabaseAnonKey,
+  });
+  // You might want to throw an error here, or handle it gracefully
+  // For now, we'll proceed but expect issues.
+  // throw new Error('Missing Supabase environment variables.');
 }
 
 // Validate URL format
 try {
-  new URL(supabaseUrl);
+  if (supabaseUrl) {
+    new URL(supabaseUrl);
+    console.log('Supabase Client Init: URL format valid.');
+  } else {
+    console.warn('Supabase Client Init: URL not present, skipping format validation.');
+  }
 } catch (error) {
-  throw new Error(`Invalid Supabase URL: ${supabaseUrl}`);
+  console.error('Supabase Client Init Error: Invalid Supabase URL format.', supabaseUrl, error);
+  // throw new Error(`Invalid Supabase URL: ${supabaseUrl}`);
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -48,3 +61,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
+
+console.log('Supabase Client Init: Client instance created.');

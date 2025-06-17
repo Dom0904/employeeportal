@@ -36,10 +36,9 @@ import {
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-// Employee status types
+// Types
 type EmployeeStatus = 'active' | 'off duty' | 'on leave';
 
-// Employee interface
 interface Employee {
   id: string;
   idNumber: string;
@@ -54,7 +53,6 @@ interface Employee {
   phoneNumber?: string;
 }
 
-// Status history interface
 interface StatusHistory {
   id: string;
   employee_id: string;
@@ -62,6 +60,33 @@ interface StatusHistory {
   changed_at: string;
   changed_by: string;
   reason?: string;
+}
+
+interface TimeTracking {
+  id: string;
+  user_id: string;
+  timein: string;
+  timeout?: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Profile {
+  id: string;
+  id_number: string;
+  name: string;
+  email: string;
+  phone_number: string;
+}
+
+interface EmployeeListRecord {
+  profile_id: string;
+  department: string;
+  position: string;
+  status: string;
+  last_active: string;
+  profiles: Profile;
 }
 
 const EmployeeStatusPage = () => {
@@ -78,9 +103,20 @@ const EmployeeStatusPage = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [editForm, setEditForm] = useState<Partial<Employee>>({});
 
-  // Fetch employees from profiles table
+  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const determineStatus = (timeRecord: TimeTracking | undefined): EmployeeStatus => {
+    if (!timeRecord) return 'off duty';
+    if (timeRecord.timein && !timeRecord.timeout) return 'active';
+    return 'off duty';
+  };
+
+  // Fetch employees and set up real-time subscription
   useEffect(() => {
     fetchEmployees();
+    
     // Set up real-time subscription
     const subscription = supabase
       .channel('profiles_changes')
@@ -96,35 +132,68 @@ const EmployeeStatusPage = () => {
 
   const fetchEmployees = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch employee list with profile information
+      const { data: employees, error: employeesError } = await supabase
         .from('profiles')
         .select(`
-          *,
-          time_logs (
-            clock_in,
-            clock_out
+          id,
+          id_number,
+          name,
+          email,
+          phone_number,
+          last_active,
+          department,
+          position,
+          employee_list!left (
+            status
           )
         `)
-        .order('name');
+        .order('name') as { data: any[] | null, error: any };
 
-      if (error) throw error;
+      if (employeesError) {
+        console.error('Error fetching employees:', employeesError);
+        showSnackbar('Failed to load employees. Please try again later.', 'error');
+        return;
+      }
 
-      const employeeData: Employee[] = data.map(profile => {
-        const latestTimeLog = profile.time_logs?.[0];
-        const status = determineStatus(latestTimeLog);
+      if (!employees || employees.length === 0) {
+        console.warn('No employees found');
+        setEmployees([]);
+        setFilteredEmployees([]);
+        return;
+      }
+
+      // Then fetch time records
+      const { data: timeRecords, error: timeRecordsError } = await supabase
+        .from('time_records')
+        .select('id, user_id, timein, timeout, date, created_at, updated_at')
+        .order('timein', { ascending: false });
+
+      if (timeRecordsError) {
+        console.error('Error fetching time records:', timeRecordsError);
+        showSnackbar('Failed to load time records. Please try again later.', 'error');
+        return;
+      }
+
+      // Map employees with their latest time record
+      const employeeData: Employee[] = employees.map(employee => {
+        const latestTimeRecord = timeRecords?.find(
+          record => record.user_id === employee.id
+        );
+        const status = determineStatus(latestTimeRecord);
         
         return {
-          id: profile.id,
-          idNumber: profile.id_number || '',
-          name: profile.name,
-          jobPosition: profile.position || '',
-          department: profile.department || 'General',
+          id: employee.id,
+          idNumber: employee.id_number,
+          name: employee.name,
+          jobPosition: employee.position || '',
+          department: employee.department || 'General',
           status,
-          lastActive: profile.last_active || new Date().toISOString(),
-          clockInTime: latestTimeLog?.clock_in,
-          clockOutTime: latestTimeLog?.clock_out,
-          email: profile.email,
-          phoneNumber: profile.phone_number
+          lastActive: employee.last_active,
+          clockInTime: latestTimeRecord?.timein,
+          clockOutTime: latestTimeRecord?.timeout,
+          email: employee.email,
+          phoneNumber: employee.phone_number
         };
       });
 
@@ -132,14 +201,8 @@ const EmployeeStatusPage = () => {
       setFilteredEmployees(employeeData);
     } catch (error) {
       console.error('Error fetching employees:', error);
-      showSnackbar('Failed to load employees', 'error');
+      showSnackbar('Failed to load employees. Please try again later.', 'error');
     }
-  };
-
-  const determineStatus = (timeLog: any): EmployeeStatus => {
-    if (!timeLog) return 'off duty';
-    if (timeLog.clock_in && !timeLog.clock_out) return 'active';
-    return 'off duty';
   };
 
   // Update filtered employees when filters change
@@ -227,10 +290,6 @@ const EmployeeStatusPage = () => {
     }
   };
 
-  const showSnackbar = (message: string, severity: 'success' | 'error') => {
-    setSnackbar({ open: true, message, severity });
-  };
-
   const departments = [...new Set(employees.map(emp => emp.department))];
 
   const getStatusColor = (status: EmployeeStatus) => {
@@ -256,6 +315,23 @@ const EmployeeStatusPage = () => {
     if (diffInHours < 24) return `${diffInHours} hours ago`;
     if (diffInHours < 48) return 'Yesterday';
     return date.toLocaleDateString();
+  };
+
+  const calculateDuration = (clockIn?: string, clockOut?: string) => {
+    if (!clockIn || !clockOut) return '--';
+
+    const inTime = new Date(clockIn);
+    const outTime = new Date(clockOut);
+
+    if (isNaN(inTime.getTime()) || isNaN(outTime.getTime())) return '--';
+
+    const diffMs = outTime.getTime() - inTime.getTime();
+    if (diffMs < 0) return '--'; // Handle cases where clock_out is before clock_in
+
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    return `${diffHours}h ${diffMinutes}m`;
   };
 
   return (
@@ -325,6 +401,7 @@ const EmployeeStatusPage = () => {
               <TableCell sx={{ color: 'white' }}>Department</TableCell>
               <TableCell sx={{ color: 'white' }}>Status</TableCell>
               <TableCell sx={{ color: 'white' }}>Last Active</TableCell>
+              <TableCell sx={{ color: 'white' }}>Duration</TableCell>
               <TableCell sx={{ color: 'white' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -343,15 +420,8 @@ const EmployeeStatusPage = () => {
                   />
                 </TableCell>
                 <TableCell>{formatLastActive(employee.lastActive)}</TableCell>
+                <TableCell>{calculateDuration(employee.clockInTime, employee.clockOutTime)}</TableCell>
                 <TableCell>
-                  <Tooltip title="Edit Profile">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleEditClick(employee)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  </Tooltip>
                   <Tooltip title="View History">
                     <IconButton
                       size="small"
@@ -373,7 +443,7 @@ const EmployeeStatusPage = () => {
             ))}
             {filteredEmployees.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={8} align="center">
                   No employees found matching the current filters
                 </TableCell>
               </TableRow>
@@ -422,7 +492,7 @@ const EmployeeStatusPage = () => {
         <DialogActions>
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleEditSave} variant="contained" color="primary">
-            Save Changes
+            Save
           </Button>
         </DialogActions>
       </Dialog>
