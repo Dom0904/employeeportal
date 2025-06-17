@@ -75,10 +75,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       console.log('Attempting login with ID:', idNumber);
       
-      // First, fetch the user's email from the profiles table using the ID number
+      // Fetch the user's email and profile data in a single query
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('email, id')
+        .select('email, id, name, role, phone_number, position, profile_picture')
         .eq('id_number', idNumber)
         .single();
 
@@ -98,13 +98,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return false;
       }
 
-      const profile = await fetchUserProfile(data.user.id);
-      if (!profile) {
-        console.error('Profile not found after successful auth');
-        return false;
-      }
+      // Use the profile data we already have instead of fetching it again
+      const user: User = {
+        id: profileData.id,
+        id_number: idNumber,
+        name: profileData.name,
+        role: profileData.role as UserRole,
+        email: profileData.email,
+        phoneNumber: profileData.phone_number,
+        position: profileData.position,
+        profilePicture: profileData.profile_picture || undefined,
+      };
 
-      setUser(profile);
+      setUser(user);
       return true;
     } catch (err: any) {
       console.error('Login error:', err);
