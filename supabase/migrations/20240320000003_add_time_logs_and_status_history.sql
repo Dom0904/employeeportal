@@ -1,9 +1,11 @@
--- Create time_logs table
-CREATE TABLE IF NOT EXISTS time_logs (
+-- Create time_records table
+CREATE TABLE IF NOT EXISTS time_records (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    employee_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    clock_in TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    clock_out TIMESTAMP WITH TIME ZONE,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    user_name TEXT,
+    timein TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    timeout TIMESTAMP WITH TIME ZONE,
+    date DATE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -20,22 +22,22 @@ CREATE TABLE IF NOT EXISTS status_history (
 );
 
 -- Add indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_time_logs_employee_id ON time_logs(employee_id);
-CREATE INDEX IF NOT EXISTS idx_time_logs_clock_in ON time_logs(clock_in);
+CREATE INDEX IF NOT EXISTS idx_time_records_user_id ON time_records(user_id);
+CREATE INDEX IF NOT EXISTS idx_time_records_timein ON time_records(timein);
 CREATE INDEX IF NOT EXISTS idx_status_history_employee_id ON status_history(employee_id);
 CREATE INDEX IF NOT EXISTS idx_status_history_changed_at ON status_history(changed_at);
 
 -- Add RLS policies
-ALTER TABLE time_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE status_history ENABLE ROW LEVEL SECURITY;
 
--- Time logs policies
-CREATE POLICY "Employees can view their own time logs"
-    ON time_logs FOR SELECT
-    USING (auth.uid() = employee_id);
+-- Time records policies
+CREATE POLICY "Employees can view their own time records"
+    ON time_records FOR SELECT
+    USING (auth.uid() = user_id);
 
-CREATE POLICY "Admins can view all time logs"
-    ON time_logs FOR SELECT
+CREATE POLICY "Admins can view all time records"
+    ON time_records FOR SELECT
     USING (
         EXISTS (
             SELECT 1 FROM profiles
@@ -44,13 +46,13 @@ CREATE POLICY "Admins can view all time logs"
         )
     );
 
-CREATE POLICY "Employees can create their own time logs"
-    ON time_logs FOR INSERT
-    WITH CHECK (auth.uid() = employee_id);
+CREATE POLICY "Employees can create their own time records"
+    ON time_records FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Employees can update their own time logs"
-    ON time_logs FOR UPDATE
-    USING (auth.uid() = employee_id);
+CREATE POLICY "Employees can update their own time records"
+    ON time_records FOR UPDATE
+    USING (auth.uid() = user_id);
 
 -- Status history policies
 CREATE POLICY "Employees can view their own status history"
@@ -86,7 +88,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_time_logs_updated_at
-    BEFORE UPDATE ON time_logs
+CREATE TRIGGER update_time_records_updated_at
+    BEFORE UPDATE ON time_records
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column(); 
