@@ -29,10 +29,10 @@ import { supabase } from '../supabaseClient';
 // Time record interface
 interface TimeRecord {
   id: string;
-  user_id: string;
+  user_id: string; // Corresponds to employee_id in other tables, user_id in time_records
   user_name: string;
-  timein: string;
-  timeout: string | null;
+  timein: string; // Corresponds to clock_in in other contexts
+  timeout: string | null; // Corresponds to clock_out in other contexts
   date: string;
 }
 
@@ -63,10 +63,10 @@ const TimeTracking = () => {
     const fetchTimeRecords = async () => {
       try {
         const { data, error } = await supabase
-          .from('time_tracking')
+          .from('time_records') // Correct table name
           .select('*')
-          .eq('employee_id', user.id) // Assuming employee_id in time_tracking maps to user.id
-          .order('clock_in', { ascending: false });
+          .eq('user_id', user.id) // Correct column name for user ID
+          .order('timein', { ascending: false }); // Correct column name for ordering
 
         if (error) {
           console.error('Error fetching time records:', error);
@@ -78,11 +78,11 @@ const TimeTracking = () => {
 
         const records: TimeRecord[] = data.map(record => ({
           id: record.id,
-          user_id: record.employee_id,
-          user_name: user.name, // We can get this from the user context
-          timein: record.clock_in,
-          timeout: record.clock_out,
-          date: format(parseISO(record.clock_in), 'yyyy-MM-dd')
+          user_id: record.user_id,
+          user_name: record.user_name, // Use the user_name from the DB record
+          timein: record.timein,
+          timeout: record.timeout,
+          date: format(parseISO(record.timein), 'yyyy-MM-dd')
         }));
         setTimeRecords(records);
 
@@ -106,10 +106,10 @@ const TimeTracking = () => {
 
     fetchTimeRecords();
 
-    // Set up real-time subscription for time_tracking changes
+    // Set up real-time subscription for time_records changes
     const subscription = supabase
-      .channel('time_tracking_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_tracking', filter: `employee_id=eq.${user.id}` }, () => {
+      .channel('time_records_changes') // Correct channel name
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_records', filter: `user_id=eq.${user.id}` }, () => { // Correct table and filter
         fetchTimeRecords();
       })
       .subscribe();
@@ -128,14 +128,16 @@ const TimeTracking = () => {
     const timeStr = format(now, 'yyyy-MM-dd\'T\'HH:mm:ss');
 
     const newRecord = {
-      employee_id: user.id, // Use employee_id as per time_tracking table
-      clock_in: timeStr,
-      clock_out: null,
+      user_id: user.id, // Correct column name
+      user_name: user.name, // Correct column name
+      timein: timeStr,
+      timeout: null,
+      date: dateStr,
     };
 
     // Save to Supabase
     const { data, error } = await supabase
-      .from('time_tracking')
+      .from('time_records') // Correct table name
       .insert([newRecord])
       .select(); // Select the inserted data to get the correct id and other fields
 
@@ -153,11 +155,11 @@ const TimeTracking = () => {
       // Supabase generates the id, so we use the one returned from the insert operation
       const clientSideRecord: TimeRecord = {
          id: savedRecord.id,
-         user_id: savedRecord.employee_id,
-         user_name: user.name,
-         timein: savedRecord.clock_in,
-         timeout: savedRecord.clock_out,
-         date: format(parseISO(savedRecord.clock_in), 'yyyy-MM-dd')
+         user_id: savedRecord.user_id,
+         user_name: savedRecord.user_name,
+         timein: savedRecord.timein,
+         timeout: savedRecord.timeout,
+         date: format(parseISO(savedRecord.timein), 'yyyy-MM-dd')
       };
       setTimeRecords(prev => [clientSideRecord, ...prev]);
       setCurrentRecord(clientSideRecord);
@@ -182,8 +184,8 @@ const TimeTracking = () => {
 
     // Update in Supabase
     const { data, error } = await supabase
-      .from('time_tracking')
-      .update({ clock_out: timeStr })
+      .from('time_records') // Correct table name
+      .update({ timeout: timeStr }) // Correct column name
       .eq('id', currentRecord.id)
       .select(); // Select the updated data
 
@@ -200,11 +202,11 @@ const TimeTracking = () => {
      if(updatedSavedRecord) {
        const clientSideUpdatedRecord: TimeRecord = {
          id: updatedSavedRecord.id,
-         user_id: updatedSavedRecord.employee_id,
-         user_name: user?.name || '',
-         timein: updatedSavedRecord.clock_in,
-         timeout: updatedSavedRecord.clock_out,
-         date: format(parseISO(updatedSavedRecord.clock_in), 'yyyy-MM-dd')
+         user_id: updatedSavedRecord.user_id,
+         user_name: updatedSavedRecord.user_name,
+         timein: updatedSavedRecord.timein,
+         timeout: updatedSavedRecord.timeout,
+         date: format(parseISO(updatedSavedRecord.timein), 'yyyy-MM-dd')
        };
       setTimeRecords(prev =>
         prev.map(record =>
