@@ -37,7 +37,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         .from('inventory')
         .select('*, unit, category, supplier');  // Select all columns to avoid any naming mismatches
       if (error) {
-        showNotification({ type: 'error', message: 'Failed to fetch inventory' });
+        console.error('Supabase inventory fetch error:', error);
+        showNotification({ type: 'error', message: `Failed to fetch inventory: ${error.message}` });
       } else if (data) {
         // Explicitly map data to InventoryItem to ensure correct field mapping
         const mappedData: InventoryItem[] = data.map((item: any) => ({
