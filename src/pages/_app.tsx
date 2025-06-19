@@ -12,6 +12,7 @@ import theme from '../theme';
 
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -21,27 +22,29 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <NotificationProvider>
-        <AuthProvider>
-          <JobProvider>
-            <LeaveProvider>
-              <InventoryProvider>
-                <BOMProvider>
-                  <ProjectProvider>
-                    {isNoLayout ? (
-                      <Component {...pageProps} />
-                    ) : (
-                      <Layout>
+      <ErrorBoundary>
+        <NotificationProvider>
+          <AuthProvider>
+            <JobProvider>
+              <LeaveProvider>
+                <InventoryProvider>
+                  <BOMProvider>
+                    <ProjectProvider>
+                      {isNoLayout ? (
                         <Component {...pageProps} />
-                      </Layout>
-                    )}
-                  </ProjectProvider>
-                </BOMProvider>
-              </InventoryProvider>
-            </LeaveProvider>
-          </JobProvider>
-        </AuthProvider>
-      </NotificationProvider>
+                      ) : (
+                        <Layout>
+                          <Component {...pageProps} />
+                        </Layout>
+                      )}
+                    </ProjectProvider>
+                  </BOMProvider>
+                </InventoryProvider>
+              </LeaveProvider>
+            </JobProvider>
+          </AuthProvider>
+        </NotificationProvider>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }
