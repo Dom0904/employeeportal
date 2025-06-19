@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { format, subDays, parseISO } from 'date-fns';
 import { supabase } from '../supabaseClient';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // Time record interface
 interface TimeRecord {
@@ -46,6 +47,8 @@ const TimeTracking = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
   const [currentTime, setCurrentTime] = useState<Date>(new Date()); // State for current time
   const [mounted, setMounted] = useState(false); // State to track if component is mounted
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Update current time every second
   useEffect(() => {
@@ -59,34 +62,37 @@ const TimeTracking = () => {
   // Fetch time records from Supabase
   useEffect(() => {
     if (!user) return;
-
+    let didCancel = false;
+    const controller = new AbortController();
     const fetchTimeRecords = async () => {
+      setLoading(true);
+      setError(null);
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
       try {
         const { data, error } = await supabase
-          .from('time_records') // Correct table name
+          .from('time_records')
           .select('*')
-          .eq('user_id', user.id) // Correct column name for user ID
-          .order('timein', { ascending: false }); // Correct column name for ordering
-
+          .eq('user_id', user.id)
+          .order('timein', { ascending: false });
+        clearTimeout(timeoutId);
+        if (didCancel) return;
         if (error) {
-          console.error('Error fetching time records:', error);
           setSnackbarMessage('Failed to load time records');
           setSnackbarSeverity('error');
           setSnackbarOpen(true);
+          setError('Failed to load time records.');
+          setLoading(false);
           return;
         }
-
         const records: TimeRecord[] = data.map(record => ({
           id: record.id,
           user_id: record.user_id,
-          user_name: record.user_name, // Use the user_name from the DB record
+          user_name: record.user_name,
           timein: record.timein,
           timeout: record.timeout,
           date: format(parseISO(record.timein), 'yyyy-MM-dd')
         }));
         setTimeRecords(records);
-
-        // Determine if user is currently timed in
         const latestRecord = records[0];
         if (latestRecord && !latestRecord.timeout) {
           setIsTimedIn(true);
@@ -95,29 +101,34 @@ const TimeTracking = () => {
           setIsTimedIn(false);
           setCurrentRecord(null);
         }
-
-      } catch (err) {
-        console.error('Unexpected error fetching time records:', err);
-        setSnackbarMessage('An unexpected error occurred while loading time records');
+        setLoading(false);
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (didCancel) return;
+        if (err.name === 'AbortError') {
+          setError('Request timed out. Please try again.');
+        } else {
+          setError('An unexpected error occurred while loading time records.');
+        }
+        setSnackbarMessage(error || 'An unexpected error occurred while loading time records');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
+        setLoading(false);
       }
     };
-
     fetchTimeRecords();
-
-    // Set up real-time subscription for time_records changes
     const subscription = supabase
-      .channel('time_records_changes') // Correct channel name
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_records', filter: `user_id=eq.${user.id}` }, () => { // Correct table and filter
+      .channel('time_records_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_records', filter: `user_id=eq.${user.id}` }, () => {
         fetchTimeRecords();
       })
       .subscribe();
-
     return () => {
+      didCancel = true;
+      controller.abort();
       subscription.unsubscribe();
     };
-  }, [user]); // Re-run when user changes
+  }, [user]);
 
   // Handle time in
   const handleTimeIn = async () => {
@@ -266,6 +277,30 @@ const TimeTracking = () => {
       return '--:--';
     }
   };
+
+  // Retry handler
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+    // Triggers useEffect to re-fetch
+    setTimeRecords([]);
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+  if (error) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button variant="contained" color="primary" onClick={handleRetry}>Retry</Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
