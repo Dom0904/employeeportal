@@ -104,12 +104,12 @@ const TimeTracking = () => {
         setLoading(false);
       } catch (err: any) {
         clearTimeout(timeoutId);
-        if (didCancel) return;
-        if (err.name === 'AbortError') {
-          setError('Request timed out. Please try again.');
-        } else {
-          setError('An unexpected error occurred while loading time records.');
+        if (didCancel || err.name === 'AbortError') {
+          setLoading(false);
+          setError('Request canceled. Please try again.');
+          return;
         }
+        setError('An unexpected error occurred while loading time records.');
         setSnackbarMessage(error || 'An unexpected error occurred while loading time records');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
@@ -126,7 +126,7 @@ const TimeTracking = () => {
     return () => {
       didCancel = true;
       controller.abort();
-      subscription.unsubscribe();
+      setLoading(false); // Ensure loading is reset on unmount
     };
   }, [user]);
 
