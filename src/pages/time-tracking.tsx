@@ -65,8 +65,13 @@ const TimeTracking = () => {
   useEffect(() => {
     console.log('TimeTracking: useEffect for user/session. user:', user);
     if (!user) {
-      console.log('TimeTracking: No user, skipping fetch.');
-      return;
+      console.log('TimeTracking: No user, skipping fetch. Will set loading to false after delay.');
+      const timeout = setTimeout(() => {
+        setLoading(false);
+        setError('User not authenticated. Please log in again.');
+        console.log('TimeTracking: User still not available after delay, loading set to false.');
+      }, 1000);
+      return () => clearTimeout(timeout);
     }
     let didCancel = false;
     const controller = new AbortController();
@@ -308,6 +313,15 @@ const TimeTracking = () => {
     // Triggers useEffect to re-fetch
     setTimeRecords([]);
   };
+
+  if (!user && !loading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <Alert severity="error" sx={{ mb: 2 }}>User not authenticated. Please log in again.</Alert>
+        <Button variant="contained" color="primary" onClick={() => window.location.href = '/login'}>Go to Login</Button>
+      </Box>
+    );
+  }
 
   if (loading) {
     return (
