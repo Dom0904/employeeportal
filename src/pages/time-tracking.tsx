@@ -37,6 +37,8 @@ interface TimeRecord {
   date: string;
 }
 
+console.log('TimeTracking: component loaded');
+
 const TimeTracking = () => {
   const { user } = useAuth();
   const [timeRecords, setTimeRecords] = useState<TimeRecord[]>([]);
@@ -61,13 +63,21 @@ const TimeTracking = () => {
 
   // Fetch time records from Supabase
   useEffect(() => {
-    if (!user) return;
+    console.log('TimeTracking: useEffect for user/session. user:', user);
+    if (!user) {
+      console.log('TimeTracking: No user, skipping fetch.');
+      return;
+    }
     let didCancel = false;
     const controller = new AbortController();
     const fetchTimeRecords = async () => {
       setLoading(true);
       setError(null);
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      console.log('TimeTracking: Fetching time records...');
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        console.log('TimeTracking: Fetch request aborted by timeout.');
+      }, 10000); // 10s timeout
       try {
         const { data, error } = await supabase
           .from('time_records')
@@ -75,8 +85,12 @@ const TimeTracking = () => {
           .eq('user_id', user.id)
           .order('timein', { ascending: false });
         clearTimeout(timeoutId);
-        if (didCancel) return;
+        if (didCancel) {
+          console.log('TimeTracking: didCancel is true, aborting setState.');
+          return;
+        }
         if (error) {
+          console.log('TimeTracking: Error fetching time records:', error);
           setSnackbarMessage('Failed to load time records');
           setSnackbarSeverity('error');
           setSnackbarOpen(true);
@@ -84,6 +98,7 @@ const TimeTracking = () => {
           setLoading(false);
           return;
         }
+        console.log('TimeTracking: Fetched records:', data);
         const records: TimeRecord[] = data.map(record => ({
           id: record.id,
           user_id: record.user_id,
@@ -102,11 +117,13 @@ const TimeTracking = () => {
           setCurrentRecord(null);
         }
         setLoading(false);
+        console.log('TimeTracking: Fetch complete, loading:', false);
       } catch (err: any) {
         clearTimeout(timeoutId);
         if (didCancel || err.name === 'AbortError') {
           setLoading(false);
           setError('Request canceled. Please try again.');
+          console.log('TimeTracking: Fetch aborted or didCancel, loading:', false);
           return;
         }
         setError('An unexpected error occurred while loading time records.');
@@ -114,6 +131,7 @@ const TimeTracking = () => {
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
         setLoading(false);
+        console.log('TimeTracking: Unexpected error, loading:', false, 'error:', err);
       }
     };
     fetchTimeRecords();
@@ -126,9 +144,14 @@ const TimeTracking = () => {
     return () => {
       didCancel = true;
       controller.abort();
-      setLoading(false); // Ensure loading is reset on unmount
+      setLoading(false);
+      console.log('TimeTracking: Cleanup on unmount, loading set to false.');
     };
   }, [user]);
+
+  useEffect(() => {
+    console.log('TimeTracking: loading:', loading, 'error:', error, 'timeRecords:', timeRecords);
+  }, [loading, error, timeRecords]);
 
   // Handle time in
   const handleTimeIn = async () => {
