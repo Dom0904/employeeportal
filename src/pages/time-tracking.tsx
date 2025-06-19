@@ -47,10 +47,11 @@ const TimeTracking = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
-  const [currentTime, setCurrentTime] = useState<Date>(new Date()); // State for current time
-  const [mounted, setMounted] = useState(false); // State to track if component is mounted
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fetchTrigger, setFetchTrigger] = useState(0); // for retry
 
   // Update current time every second
   useEffect(() => {
@@ -61,20 +62,16 @@ const TimeTracking = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch time records from Supabase
+  // Always listen for user changes and fetch when user is available
   useEffect(() => {
     console.log('TimeTracking: useEffect for user/session. user:', user);
-    if (!user) {
-      console.log('TimeTracking: No user, skipping fetch. Will set loading to false after delay.');
-      const timeout = setTimeout(() => {
-        setLoading(false);
-        setError('User not authenticated. Please log in again.');
-        console.log('TimeTracking: User still not available after delay, loading set to false.');
-      }, 1000);
-      return () => clearTimeout(timeout);
-    }
     let didCancel = false;
     const controller = new AbortController();
+    if (!user) {
+      setLoading(false);
+      setError('User not authenticated. Please log in again.');
+      return () => {};
+    }
     const fetchTimeRecords = async () => {
       setLoading(true);
       setError(null);
@@ -95,7 +92,6 @@ const TimeTracking = () => {
           return;
         }
         if (error) {
-          console.log('TimeTracking: Error fetching time records:', error);
           setSnackbarMessage('Failed to load time records');
           setSnackbarSeverity('error');
           setSnackbarOpen(true);
@@ -103,7 +99,6 @@ const TimeTracking = () => {
           setLoading(false);
           return;
         }
-        console.log('TimeTracking: Fetched records:', data);
         const records: TimeRecord[] = data.map(record => ({
           id: record.id,
           user_id: record.user_id,
@@ -122,13 +117,12 @@ const TimeTracking = () => {
           setCurrentRecord(null);
         }
         setLoading(false);
-        console.log('TimeTracking: Fetch complete, loading:', false);
+        setError(null);
       } catch (err: any) {
         clearTimeout(timeoutId);
         if (didCancel || err.name === 'AbortError') {
           setLoading(false);
           setError('Request canceled. Please try again.');
-          console.log('TimeTracking: Fetch aborted or didCancel, loading:', false);
           return;
         }
         setError('An unexpected error occurred while loading time records.');
@@ -136,23 +130,26 @@ const TimeTracking = () => {
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
         setLoading(false);
-        console.log('TimeTracking: Unexpected error, loading:', false, 'error:', err);
       }
     };
     fetchTimeRecords();
     const subscription = supabase
       .channel('time_records_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'time_records', filter: `user_id=eq.${user.id}` }, () => {
-        fetchTimeRecords();
+        setFetchTrigger(t => t + 1); // refetch on realtime change
       })
       .subscribe();
     return () => {
       didCancel = true;
       controller.abort();
       setLoading(false);
-      console.log('TimeTracking: Cleanup on unmount, loading set to false.');
+      setError(null);
+      subscription.unsubscribe();
+      setTimeRecords([]);
+      setIsTimedIn(false);
+      setCurrentRecord(null);
     };
-  }, [user]);
+  }, [user, fetchTrigger]);
 
   useEffect(() => {
     console.log('TimeTracking: loading:', loading, 'error:', error, 'timeRecords:', timeRecords);
@@ -310,8 +307,7 @@ const TimeTracking = () => {
   const handleRetry = () => {
     setError(null);
     setLoading(true);
-    // Triggers useEffect to re-fetch
-    setTimeRecords([]);
+    setFetchTrigger(t => t + 1);
   };
 
   if (!user && !loading) {
