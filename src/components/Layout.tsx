@@ -236,7 +236,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MenuIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-            <img src="/images/logo.png" alt="EdgeTech Logo" style={{ height: 40, marginRight: 16 }} />
+            <img src="https://vsutwbjtzvzhdrswlbrs.supabase.co/storage/v1/object/public/public-images/Edgetech-logo.png" alt="Edgetech Logo" style={{ height: 40, marginRight: 16 }} />
             <Typography variant="h6" noWrap component="div">
               Employee Portal
             </Typography>
@@ -328,8 +328,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}>
           <Box
             component="img"
-            src="/images/logo.png"
-            alt="EdgeTech Logo"
+            src="https://vsutwbjtzvzhdrswlbrs.supabase.co/storage/v1/object/public/public-images/Edgetech-logo.png"
+            alt="Edgetech Logo"
             sx={{
               height: 50,
               width: 'auto',
