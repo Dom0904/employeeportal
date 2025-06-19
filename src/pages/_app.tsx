@@ -14,10 +14,21 @@ import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import ErrorBoundary from '../components/ErrorBoundary';
 
+console.log('App: _app.tsx loaded');
+
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const noLayoutRoutes = ['/', '/login'];
   const isNoLayout = noLayoutRoutes.includes(router.pathname);
+
+  console.log('App: Rendering main App component');
+  console.log('App: NotificationProvider mounted');
+  console.log('App: AuthProvider mounted');
+  console.log('App: JobProvider mounted');
+  console.log('App: LeaveProvider mounted');
+  console.log('App: InventoryProvider mounted');
+  console.log('App: BOMProvider mounted');
+  console.log('App: ProjectProvider mounted');
 
   return (
     <ThemeProvider theme={theme}>
